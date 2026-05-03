@@ -1,0 +1,8 @@
+django
+djangorestframework
+django-cors-headers
+pdfplumber
+python-docx
+spacy
+language-tool-python
+python-dotenv

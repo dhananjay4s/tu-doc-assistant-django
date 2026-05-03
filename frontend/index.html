@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TU BCA | Document Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+  <!-- Background texture -->
+  <div class="bg-texture"></div>
+
+  <div class="app">
+
+    <!-- ── HEADER ── -->
+    <header class="header">
+      <div class="header-left">
+        <div class="header-emblem">
+          <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+            <polygon points="18,2 34,30 2,30" fill="none" stroke="#C4884A" stroke-width="1.5"/>
+            <polygon points="18,10 28,26 8,26" fill="none" stroke="#C4884A" stroke-width="1"/>
+            <circle cx="18" cy="20" r="3" fill="#C4884A"/>
+          </svg>
+        </div>
+        <div class="header-text">
+          <span class="header-label">Tribhuvan University · FOHSS</span>
+          <h1 class="header-title">Document Assistant</h1>
+        </div>
+      </div>
+      <div class="header-right">
+        <span class="header-badge">BCA · BIM · BIT</span>
+      </div>
+    </header>
+
+    <!-- ── PROGRESS BAR ── -->
+    <div class="progress-track">
+      <div class="progress-fill" id="progress-fill"></div>
+    </div>
+
+    <!-- ── STEP INDICATORS ── -->
+    <nav class="step-nav">
+      <div class="step-item active" id="step1-dot">
+        <div class="step-pill">
+          <span class="step-num">01</span>
+          <span class="step-label">Select Type</span>
+        </div>
+      </div>
+      <div class="step-connector"></div>
+      <div class="step-item" id="step2-dot">
+        <div class="step-pill">
+          <span class="step-num">02</span>
+          <span class="step-label">Upload</span>
+        </div>
+      </div>
+      <div class="step-connector"></div>
+      <div class="step-item" id="step3-dot">
+        <div class="step-pill">
+          <span class="step-num">03</span>
+          <span class="step-label">Analysis</span>
+        </div>
+      </div>
+    </nav>
+
+    <!-- ══════════════════════════════════
+         STEP 1 — SELECT DOC TYPE
+    ══════════════════════════════════ -->
+    <section id="step1" class="section-panel">
+      <div class="panel-header">
+        <h2 class="panel-title">Select your document type</h2>
+        <p class="panel-sub">Choose the semester and report type to load the correct TU FOHSS template</p>
+      </div>
+
+      <div class="doc-grid" id="doc-cards">
+        <!-- Rendered by JS -->
+      </div>
+
+      <div class="action-row">
+        <button class="btn-primary" id="step1-next" disabled onclick="goToStep2()">
+          Continue
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════
+         STEP 2 — UPLOAD / PASTE
+    ══════════════════════════════════ -->
+    <section id="step2" class="section-panel" style="display:none">
+      <div class="two-col-layout">
+
+        <!-- Left: Template sections -->
+        <div class="col-left">
+          <div class="col-header">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <rect x="1" y="1" width="12" height="12" rx="2" stroke="#C4884A" stroke-width="1.2"/>
+              <path d="M4 5h6M4 7h6M4 9h4" stroke="#C4884A" stroke-width="1.2" stroke-linecap="round"/>
+            </svg>
+            Required sections
+          </div>
+          <div class="section-scroll" id="section-list"></div>
+          <div class="format-card">
+            <p class="format-title">Formatting standard</p>
+            <div class="format-rows">
+              <div class="format-row"><span>Font</span><span>Times New Roman</span></div>
+              <div class="format-row"><span>Chapter</span><span>16pt Bold · Center</span></div>
+              <div class="format-row"><span>Section</span><span>14pt Bold · Left</span></div>
+              <div class="format-row"><span>Body</span><span>12pt · Justified</span></div>
+              <div class="format-row"><span>Spacing</span><span>1.5 lines</span></div>
+              <div class="format-row"><span>Margin L</span><span>1.25" (35mm)</span></div>
+              <div class="format-row"><span>Margin R/T/B</span><span>1.0"</span></div>
+              <div class="format-row"><span>References</span><span>IEEE format</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Upload area -->
+        <div class="col-right">
+          <div class="col-header">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M7 1v8M4 4L7 1l3 3" stroke="#C4884A" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M1 10v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="#C4884A" stroke-width="1.2" stroke-linecap="round"/>
+            </svg>
+            Upload your document
+          </div>
+
+          <!-- Upload zone -->
+          <div class="upload-zone" id="upload-area"
+               onclick="document.getElementById('file-input').click()">
+            <input type="file" id="file-input" accept=".pdf,.docx"
+                   style="display:none"/>
+            <div id="upload-content">
+              <div class="upload-icon-wrap">
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                  <rect x="4" y="4" width="24" height="24" rx="4" stroke="#C4884A" stroke-width="1.5" stroke-dasharray="4 3"/>
+                  <path d="M16 20v-8M12 16l4-4 4 4" stroke="#C4884A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <p class="upload-title">Drop your file here</p>
+              <p class="upload-hint">PDF or DOCX · Max 10MB</p>
+              <span class="upload-btn-label">Browse files</span>
+            </div>
+          </div>
+
+          <div class="divider-or"><span>or paste text</span></div>
+
+          <div class="textarea-wrap">
+            <textarea id="doc-text"
+              placeholder="Paste the full content of your document here...&#10;&#10;Include all chapter headings for accurate section detection.&#10;Example: 'Chapter 1: Introduction', '1.1 Problem Statement'"></textarea>
+            <div class="textarea-footer">
+              <span id="word-count" class="word-count-badge">0 words</span>
+            </div>
+          </div>
+
+          <div class="action-row">
+            <button class="btn-ghost" onclick="goToStep1()">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M11 7H3M7 3L3 7l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+              Back
+            </button>
+            <button class="btn-primary" onclick="analyze()">
+              Analyze document
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M6 8h4M8 6v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════
+         STEP 3 — RESULTS
+    ══════════════════════════════════ -->
+    <section id="step3" class="section-panel" style="display:none">
+
+      <!-- Loading -->
+      <div id="loading" class="loading-state">
+        <div class="loading-ring">
+          <svg width="48" height="48" viewBox="0 0 48 48">
+            <circle cx="24" cy="24" r="20" fill="none" stroke="#EDE8E0" stroke-width="3"/>
+            <circle cx="24" cy="24" r="20" fill="none" stroke="#7A2E1A" stroke-width="3"
+              stroke-dasharray="80 46" stroke-linecap="round"
+              style="transform-origin:center;animation:spin 1.2s linear infinite"/>
+          </svg>
+        </div>
+        <p class="loading-msg" id="load-msg">Checking document structure...</p>
+        <p class="loading-sub">This may take a few moments</p>
+      </div>
+
+      <!-- Results -->
+      <div id="results" style="display:none">
+
+        <!-- Score banner -->
+        <div class="score-banner" id="score-banner">
+          <div class="score-left">
+            <div class="score-circle" id="score-circle">
+              <span class="score-num" id="score-num">—</span>
+              <span class="score-denom">/100</span>
+            </div>
+            <div class="score-info">
+              <p class="score-label">Compliance score</p>
+              <p class="score-desc" id="score-desc">—</p>
+            </div>
+          </div>
+          <div class="score-metrics" id="metrics"></div>
+        </div>
+
+        <!-- Feedback -->
+        <div class="feedback-container" id="feedback"></div>
+
+        <!-- Bottom actions -->
+        <div class="results-actions">
+          <button class="btn-ghost" onclick="goToStep2()">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M11 7H3M7 3L3 7l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            Edit document
+          </button>
+          <button class="btn-ghost" onclick="goToStep1()">Start over</button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+  <!-- /.app -->
+<script src="app.js"></script>
+</body>
+</html>
