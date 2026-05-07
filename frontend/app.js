@@ -175,11 +175,15 @@ function goToStep1() {
 function goToStep2() {
   if (!selectedDocType) return;
 
+  // Reference format update
+  const refEl = document.getElementById('ref-format');
+  if (refEl) {
+    refEl.textContent = selectedDocType === 'internship' ? 'APA format' : 'IEEE format';
+  }
+
   fetch(`${API}/templates/${selectedDocType}/`)
-    .then((res) => res.json())
-    .then((data) => {
-      renderSectionList(data.required_sections, data.optional_sections);
-    })
+    .then(res => res.json())
+    .then(data => renderSectionList(data.required_sections, data.optional_sections))
     .catch((e) => console.error(e));
 
   setStep(2);
@@ -343,6 +347,19 @@ function renderResults(data) {
 
   const fb = document.getElementById("feedback");
   fb.innerHTML = "";
+
+  // ── 0. PROPOSAL vs FINAL REPORT WARNING ──
+  if (data.numbering_issues?.length > 0) {
+    const hasError = data.numbering_issues.some(n => n.type === 'error');
+    const items = data.numbering_issues.map(n =>
+      `<div class="fb-item ${n.type}">${n.message}</div>`
+    ).join('');
+    fb.innerHTML += buildSection(
+      '🚨 Document Type Check',
+      hasError ? 'error' : 'warning',
+      items
+    );
+  }
 
   // ── 1. GROUP VALIDATION ──
   if (data.group_info?.feedback?.length > 0) {
@@ -545,17 +562,13 @@ function renderResults(data) {
   }
 
   // ── Template info ──
-  fb.innerHTML += `
-    <div class="fb-section">
-      <div class="fb-section-body">
+  fb.innerHTML += buildSection("ℹ️ Analysis Info", "info", `
         <div class="fb-item info">
-          ℹ️ <strong>Template:</strong> ${data.template_name} ·
+          <strong>Template:</strong> ${data.template_name} ·
           <strong>Code:</strong> ${data.course_code} ·
           <strong>File:</strong> ${(data.file_type || "text").toUpperCase()} ·
-          <strong>Referencing:</strong> IEEE
-        </div>
-      </div>
-    </div>`;
+          <strong>Referencing:</strong> ${data.doc_type === "internship" ? "APA" : "IEEE"}
+        </div>`);
 }
 
 // ─────────────────────────────────────────

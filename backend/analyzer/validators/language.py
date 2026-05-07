@@ -1,6 +1,7 @@
 import re
 import spacy
 from functools import lru_cache
+import language_tool_python
 
 # Load spaCy model once
 try:
@@ -105,7 +106,6 @@ def _get_language_tool():
     global _lt
     if _lt is None:
         try:
-            import language_tool_python
             _lt = language_tool_python.LanguageTool('en-US')
         except Exception:
             _lt = False  # Mark as failed
@@ -270,68 +270,88 @@ def detect_informal_language(text):
 # IEEE CITATION CHECK
 # ─────────────────────────────────────────
 
-def check_ieee_citations(text):
-    """Check IEEE citation format [1], [2] presence and consistency."""
+def check_citations(text, referencing="IEEE"):
+    """Check citation format — IEEE for projects, APA for internship."""
     results = []
 
-    # In-text citations
+    if referencing == "APA":
+        # APA: (Author, Year) pattern
+        apa_citations = re.findall(
+            r'([A-Z][a-zA-Z]+[\.,]\s*\(?\d{4}|'   # Author. (2024)
+            r'[A-Z][a-zA-Z]+[\.,]\s*\(?n\.d\.|'   # Author. (n.d.)
+            r'\([A-Z][a-zA-Z]+,\s*\d{4}\)|'       # (Author, 2024)
+            r'\([A-Z][a-zA-Z]+,\s*n\.d\.\))',     # (Author, n.d.)
+            text
+        )
+        if not apa_citations:
+            results.append({
+                "type": "error",
+                "message": (
+                    "No APA citations found. Internship report requires APA format. "
+                    "Example: (Sharma, 2023) or (Smith & Jones, 2022)"
+                )
+            })
+        else:
+            results.append({
+                "type": "success",
+                "message": f"APA citations detected: {len(apa_citations)} found ✓"
+            })
+        return results
+
+    # IEEE format — [1], [2]
     inline_citations = re.findall(r'\[(\d+)\]', text)
     citation_numbers = [int(n) for n in inline_citations]
 
     if not citation_numbers:
         results.append({
             "type": "error",
-            "message": "No IEEE citations [1], [2] found in document body. "
-                      "All sources must be cited inline as [1], [2], etc."
+            "message": "No IEEE citations [1], [2] found. All sources must be cited inline."
         })
         return results
 
     max_citation = max(citation_numbers)
     unique_citations = sorted(set(citation_numbers))
-
-    # Check if citations are sequential
-    expected = list(range(1, max_citation + 1))
-    missing_nums = [n for n in expected if n not in unique_citations]
+    missing_nums = [n for n in range(1, max_citation + 1) if n not in unique_citations]
 
     results.append({
         "type": "success",
-        "message": f"IEEE citations found: {len(unique_citations)} unique citations "
-                  f"([1] to [{max_citation}]) — {len(inline_citations)} total uses."
+        "message": (
+            f"IEEE citations found: {len(unique_citations)} unique "
+            f"([1] to [{max_citation}]) — {len(inline_citations)} total uses ✓"
+        )
     })
-
     if missing_nums:
         results.append({
             "type": "warning",
-            "message": f"Citation numbers {missing_nums} missing. "
-                      "Citations should be sequential [1],[2],[3]..."
+            "message": f"Citation numbers {missing_nums} missing — should be sequential."
         })
 
     # References section check
-    ref_section = re.search(r'references?\s*\n(.*?)(?=appendix|bibliography|$)',
-                           text, re.IGNORECASE | re.DOTALL)
-    if ref_section:
-        ref_text = ref_section.group(1)
-        ref_entries = re.findall(r'\[(\d+)\]', ref_text)
+    ref_match = re.search(r'references?\s*\n(.*?)(?=appendix|bibliography|$)',
+                          text, re.IGNORECASE | re.DOTALL)
+    if ref_match:
+        ref_entries = re.findall(r'\[(\d+)\]', ref_match.group(1))
         if len(ref_entries) < len(unique_citations):
             results.append({
                 "type": "warning",
-                "message": f"References section has {len(ref_entries)} entries but "
-                          f"{len(unique_citations)} citations used. All citations must be listed."
+                "message": (
+                    f"References section has {len(ref_entries)} entries but "
+                    f"{len(unique_citations)} citations used."
+                )
             })
         else:
             results.append({
                 "type": "success",
-                "message": f"References section has {len(ref_entries)} entries ✓"
+                "message": f"References section: {len(ref_entries)} entries ✓"
             })
 
     return results
-
 
 # ─────────────────────────────────────────
 # MAIN CHECK LANGUAGE FUNCTION
 # ─────────────────────────────────────────
 
-def check_language(text):
+def check_language(text, doc_type):
     issues = []
     warnings = []
     suggestions = []
@@ -382,24 +402,21 @@ def check_language(text):
                       f"{[i['word'] for i in informal[:5]]}. Replace with academic terms."
         })
 
-    # 4. IEEE citations
-    ieee_results = check_ieee_citations(text)
-    for r in ieee_results:
-        if r['type'] == 'error':
-            issues.append(r)
-        elif r['type'] == 'warning':
-            warnings.append(r)
-        else:
-            suggestions.append(r)
+    # 4. Citations — IEEE for projects, APA for internship
+    referencing = "APA" if doc_type == "internship" else "IEEE"
+    citation_results = check_citations(text, referencing)
+    for r in citation_results:
+        if r['type'] == 'error':     issues.append(r)
+        elif r['type'] == 'warning': warnings.append(r)
+        else:                        suggestions.append(r)
 
     return {
         "issues": issues,
         "warnings": warnings,
         "suggestions": suggestions,
         "all_feedback": issues + warnings + suggestions,
-        # Detailed data for frontend
         "active_first_person": active_first_person[:5],
         "grammar_issues": grammar_issues[:10],
         "informal_words": informal,
-        "ieee_results": ieee_results,
+        "ieee_results": citation_results,  # ← ieee_results → citation_results
     }

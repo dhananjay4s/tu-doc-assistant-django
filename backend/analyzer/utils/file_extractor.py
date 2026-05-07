@@ -88,6 +88,11 @@ def extract_from_docx(file_bytes):
     if 'acknowledgement' in first_text or 'acknowledge' in first_text:
         text_parts.insert(0, "acknowledgement\n")
 
+    all_text_lower = ' '.join(text_parts).lower()
+
+    if 'abstract' in all_text_lower or 'executive summary' in all_text_lower:
+        text_parts.insert(0, "abstract\n")
+
     return "\n".join(text_parts)
 
 def extract_formatting_from_docx(file_bytes):

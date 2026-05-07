@@ -21,100 +21,64 @@ TU_FORMATTING_STANDARDS = {
 }
 
 # Common formatting mistakes in plain text we can detect
-def check_formatting_hints(text):
+def check_formatting_hints(text, doc_type="project_2"):
     """
     Note: Full formatting (fonts, margins, spacing) can only be checked
     in .docx files. This checks what's detectable from plain text.
     """
     feedback = []
     text_lower = text.lower()
+    is_internship = doc_type == "internship"
 
-    # Check: Chapter headings should not be in lowercase
+    # Chapter heading check
     chapter_matches = re.findall(r'chapter\s+\d+', text, re.IGNORECASE)
     lowercase_chapters = [c for c in chapter_matches if c == c.lower() and c[0].islower()]
     if lowercase_chapters:
-        feedback.append({
-            "type": "warning",
-            "message": (
-                "Chapter headings detected in lowercase. "
-                "Per TU standard: chapter titles should be formatted as 16pt Bold. "
-                "E.g., 'CHAPTER 1: INTRODUCTION' or 'Chapter 1: Introduction' (title case)."
-            ),
-        })
+        feedback.append({"type": "warning", "message": "Chapter headings lowercase detected. Use 16pt Bold — 'Chapter 1: Introduction'."})
     else:
-        feedback.append({
-            "type": "info",
-            "message": (
-                "Formatting reminder: Times New Roman required throughout. "
-                "Chapter headings: 16pt Bold (Center). "
-                "Section headings: 14pt Bold (Left). "
-                "Sub-section: 12pt Bold. Body text: 12pt Regular (Justified)."
-            ),
-        })
+        feedback.append({"type": "info", "message": "Formatting reminder: Times New Roman | Chapter: 16pt Bold Center | Section: 14pt Bold Left | Sub-section: 12pt Bold | Body: 12pt Justified."})
 
-    # Check: Margins reminder
-    feedback.append({
-        "type": "info",
-        "message": (
-            "Margin requirement: Left = 1.25 inch (35mm), Right = 1 inch (20mm), "
-            "Top = 1 inch, Bottom = 1 inch. Verify in your Word document."
-        ),
-    })
+    # Margins
+    feedback.append({"type": "info", "message": "Margin: Left=1.25\" (35mm), Right=Top=Bottom=1.0\". Verify in Word document."})
 
-    # Check: Page numbering
-    feedback.append({
-        "type": "info",
-        "message": (
-            "Page numbering: Roman numerals (i, ii, iii) from Certificate page to List of Tables/Figures. "
-            "Arabic numerals (1, 2, 3) from Chapter 1 onwards. Position: Bottom Center."
-        ),
-    })
+    # Page numbering
+    feedback.append({"type": "info", "message": "Page numbering: Roman (i,ii,iii) front matter → Arabic (1,2,3) from Chapter 1. Position: Bottom Center."})
 
-    # Check: IEEE references section
+    # Citation check — APA for internship, IEEE for others
     has_references = "references" in text_lower
-    has_ieee_bracket = bool(re.search(r'\[\d+\]', text))
 
-    if has_references and has_ieee_bracket:
-        feedback.append({
-            "type": "success",
-            "message": "References section present with IEEE-style citations detected.",
-        })
-    elif has_references and not has_ieee_bracket:
-        feedback.append({
-            "type": "error",
-            "message": (
-                "References section found but no IEEE citation format [1], [2] detected. "
-                "TU FOHSS mandates IEEE referencing. Format: [1] Author, 'Title', Journal, vol., pp., year."
-            ),
-        })
+    if is_internship:
+        apa_found = bool(re.search(
+            r'([A-Z][a-zA-Z]+[\.,]\s*\(?\d{4}|'   # Author. (2024)
+            r'[A-Z][a-zA-Z]+[\.,]\s*\(?n\.d\.|'   # Author. (n.d.)
+            r'\([A-Z][a-zA-Z]+,\s*\d{4}\)|'       # (Author, 2024)
+            r'\([A-Z][a-zA-Z]+,\s*n\.d\.\))',     # (Author, n.d.)
+            text
+        ))
+        if has_references and apa_found:
+            feedback.append({"type": "success", "message": "References section with APA citations detected ✓"})
+        elif has_references and not apa_found:
+            feedback.append({"type": "error", "message": "References found but no APA citations detected. Internship requires APA format: (Author, Year)."})
+        else:
+            feedback.append({"type": "error", "message": "References section missing. APA referencing mandatory for internship report."})
     else:
-        feedback.append({
-            "type": "error",
-            "message": (
-                "References section missing. IEEE referencing is mandatory for all TU BCA projects. "
-                "Submission copies: 3 (College Library + Self + Dean Office). "
-                "Binding: Golden Embracing with Black Binding."
-            ),
-        })
+        has_ieee = bool(re.search(r'\[\d+\]', text))
+        if has_references and has_ieee:
+            feedback.append({"type": "success", "message": "References section with IEEE citations detected ✓"})
+        elif has_references and not has_ieee:
+            feedback.append({"type": "error", "message": "References found but no IEEE citations [1],[2] detected. Format: [1] Author, 'Title', Journal, vol., pp., year."})
+        else:
+            feedback.append({"type": "error", "message": "References section missing. IEEE referencing mandatory. Binding: Golden Embracing with Black Cover. Copies: 3."})
 
-    # Check: Appendices
-    if "appendix" not in text_lower and "appendices" not in text_lower:
-        feedback.append({
-            "type": "warning",
-            "message": (
-                "Appendices section not detected. "
-                "Should include: screenshots, source code excerpts, supervisor visit log sheets."
-            ),
-        })
+    # Appendices
+    if not is_internship:
+        if "appendix" not in text_lower and "appendices" not in text_lower:
+            feedback.append({"type": "warning", "message": "Appendices not detected. Should include: screenshots, source code, supervisor visit log."})
+    else:
+        feedback.append({"type": "info", "message": "Internship appendices: Screen shots + Source codes (optional but recommended)."})
 
-    # Check: Figure/Table captions pattern
+    # Figures
     if re.search(r'figure\s+\d+', text_lower):
-        feedback.append({
-            "type": "info",
-            "message": (
-                "Figures detected. Reminder: Figure captions must be centered BELOW the figure. "
-                "Table captions must be centered ABOVE the table. Both in 12pt Bold."
-            ),
-        })
+        feedback.append({"type": "info", "message": "Figures detected. Caption: centered BELOW figure. Table caption: centered ABOVE. Both 12pt Bold."})
 
     return {"formatting_hints": feedback}

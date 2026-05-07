@@ -2,7 +2,7 @@ from rest_framework.decorators import api_view, parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
 
-from .validators.structure import check_structure, validate_group, TEMPLATES, FORMATTING_STANDARDS
+from .validators.structure import check_structure, validate_group, check_numbering_consistency, TEMPLATES, FORMATTING_STANDARDS
 from .validators.wordcount import check_wordcount
 from .validators.language import check_language
 from .validators.formatting import check_formatting_hints
@@ -101,14 +101,15 @@ def analyze_document(request):
     # Run validators
     structure = check_structure(text, doc_type)
     group_info = validate_group(text, doc_type)
-    wordcount = check_wordcount(text)
-    language = check_language(text)
-    formatting = docx_formatting if docx_formatting else check_formatting_hints(text)
+    numbering_issues = check_numbering_consistency(text, doc_type)
+    wordcount = check_wordcount(text, doc_type)
+    language = check_language(text, doc_type)
+    formatting = docx_formatting if docx_formatting else check_formatting_hints(text, doc_type)
 
     # Enhanced feedback
     passive_fixes = generate_passive_fixes(text)
     informal_fixes = generate_informal_fixes(text)
-    section_guides = generate_section_feedback(structure['missing'], structure['found'], text)
+    section_guides = generate_section_feedback(structure['missing'], structure['found'], text, doc_type)
     enhanced_wordcount = generate_wordcount_feedback(wordcount['section_results'])
 
     # Score
@@ -132,6 +133,7 @@ def analyze_document(request):
         "file_type": file_type or "text",
         "score": total_score,
         "total_words": wordcount['total_words'],
+        "numbering_issues": numbering_issues,
         "total_issues": len(structure['missing']) + len(language['issues']) + len(language['warnings']) + wc_warnings + fmt_errors,
         "structure": {
             "sections_found": structure['sections_found'],

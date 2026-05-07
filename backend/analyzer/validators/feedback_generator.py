@@ -124,7 +124,83 @@ The developed system successfully [conclusion statement]."""
         "tip": "References list alphabetically by citation number [1], [2], [3]... not by author name."
     },
 }
-
+INTERNSHIP_SECTION_GUIDES = {
+    "mentor's recommendation": {
+        "title": "Mentor's Recommendation (from Company)",
+        "must_contain": [
+            "Company mentor's name and designation",
+            "Recommendation statement for the internship work",
+            "Company name and address",
+            "Mentor's signature",
+        ],
+        "tip": "Different from supervisor recommendation — this comes from your host company."
+    },
+    "organization details": {
+        "title": "2.1 Organization Details",
+        "must_contain": [
+            "Full name and address of the organization",
+            "Type of organization (IT company, NGO, government, etc.)",
+            "Services/products offered",
+            "Year of establishment",
+        ],
+        "tip": "Describe the company where you did your internship — not your college."
+    },
+    "organizational hierarchy": {
+        "title": "2.2 Organizational Hierarchy",
+        "must_contain": [
+            "Organizational chart / hierarchy diagram",
+            "Departments and their roles",
+            "Your position in the hierarchy",
+        ],
+        "tip": "Include an actual org chart diagram if possible."
+    },
+    "working domains": {
+        "title": "2.3 Working Domains of Organization",
+        "must_contain": [
+            "Main technical domains the company works in",
+            "Technologies used by the company",
+            "Types of clients/projects handled",
+        ],
+    },
+    "intern department": {
+        "title": "2.4 Description of Intern Department/Unit",
+        "must_contain": [
+            "Name of department where you worked",
+            "Team size and structure",
+            "Your role within the department",
+        ],
+    },
+    "roles and responsibilities": {
+        "title": "4.1 Roles and Responsibilities",
+        "must_contain": [
+            "Your official role/title during internship",
+            "List of responsibilities assigned",
+            "Technologies you were expected to use",
+            "Reporting structure (who you reported to)",
+        ],
+    },
+    "weekly log": {
+        "title": "4.2 Weekly Log (Technical Details)",
+        "must_contain": [
+            "Week 1: Activities performed",
+            "Week 2: Activities performed",
+            "Continue for all 8 weeks minimum",
+            "Technical details of what was done each week",
+            "Problems encountered and solutions",
+        ],
+        "tip": "Minimum 8 weeks of log required. Be specific about technical tasks."
+    },
+    "learning outcome": {
+        "title": "5.2 Learning Outcome",
+        "must_contain": [
+            "Technical skills gained during internship",
+            "Professional/soft skills developed",
+            "Gap between academic knowledge and industry practice",
+            "How this internship helps in future career",
+        ],
+        "tip": "Avoid 'Expected' outcomes — write what you ACTUALLY learned."
+    },
+}
 # ============================================================
 # PASSIVE VOICE SUGGESTIONS
 # First person → passive/third person
@@ -255,12 +331,13 @@ def generate_informal_fixes(text):
     return fixes
 
 
-def generate_section_feedback(missing_sections, found_sections, text):
+def generate_section_feedback(missing_sections, found_sections, text, doc_type="project_2"):
     """For each missing section, provide detailed content guide."""
     feedback = []
+    guides = INTERNSHIP_SECTION_GUIDES if doc_type == "internship" else SECTION_GUIDES
 
     for section in missing_sections[:8]:  # limit to 8
-        guide = SECTION_GUIDES.get(section.lower())
+        guide = guides.get(section.lower()) or SECTION_GUIDES.get(section.lower())
         if guide:
             feedback.append({
                 "section": guide["title"],
@@ -274,7 +351,7 @@ def generate_section_feedback(missing_sections, found_sections, text):
             feedback.append({
                 "section": section.title(),
                 "status": "missing",
-                "must_contain": [f"Add '{section}' section as per TU FOHSS guidelines"],
+                "must_contain": [f"Add '{section}' section as per TU FOHSS internship guidelines"],
                 "tip": "",
             })
 

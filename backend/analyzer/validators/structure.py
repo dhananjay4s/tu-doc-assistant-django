@@ -178,73 +178,80 @@ TEMPLATES = {
     },
 
     "internship": {
-        "name": "BCA Internship Report (CACS357) — 7th Semester",
-        "code": "CACS357",
+        "name": "BCA Internship Report (CAIN403) — 7th Semester",
+        "code": "CAIN403",
         "semester": "7th",
-        "referencing": "IEEE",
+        "referencing": "APA",  # ← IEEE HOINA, APA ho internship ma
         "required_sections": [
+            # Preliminary
             "cover page",
             "title page",
-            "declaration",
+            "mentor's recommendation",      # ← Company bata
+            "supervisor's recommendation",  # ← College bata
+            "letter of approval",           # ← Examiner approval
+            "acknowledgement"
             "abstract",
-            "acknowledgement",
             "table of contents",
-            "list of tables",
-            "list of figures",
             "list of abbreviations",
+            "list of figures",
+            "list of tables",
+            # Main chapters
             "chapter 1",
             "introduction",
             "problem statement",
             "objectives",
             "scope and limitation",
-            "development methodology",
             "report organization",
             "chapter 2",
+            "organization details",
+            "organizational hierarchy",
+            "working domains",
+            "intern department",
+            "chapter 3",
             "background study",
             "literature review",
-            "chapter 3",
-            "system analysis",
-            "requirement analysis",
-            "feasibility",
-            "system design",
             "chapter 4",
-            "implementation",
-            "tools used",
-            "testing",
+            "roles and responsibilities",
+            "weekly log",
+            "tasks",
             "chapter 5",
             "conclusion",
-            "future recommendations",
+            "learning outcome",
             "references",
         ],
-        "optional_sections": ["appendices", "bibliography"],
+        "optional_sections": [
+            "bibliography",
+            "appendices",
+        ],
         "chapter_structure": {
             "chapter 1": [
                 "1.1 Introduction",
                 "1.2 Problem Statement",
                 "1.3 Objectives",
                 "1.4 Scope and Limitation",
-                "1.5 Development Methodology",
-                "1.6 Report Organization",
+                "1.5 Report Organization",
+                # NOTE: No Development Methodology — internship ma chhaina
             ],
             "chapter 2": [
-                "2.1 Background Study",
-                "2.2 Literature Review",
+                "2.1 Organization Details",
+                "2.2 Organizational Hierarchy",
+                "2.3 Working Domains of Organization",
+                "2.4 Description of Intern Department/Unit",
             ],
             "chapter 3": [
-                "3.1 System Analysis",
-                "3.1.1 Requirement Analysis",
-                "3.1.2 Feasibility Analysis",
-                "3.2 System Design",
+                "3.1 Background Study",
+                "3.2 Literature Review",
             ],
             "chapter 4": [
-                "4.1 Implementation",
-                "4.1.1 Tools Used",
-                "4.1.2 Implementation Details",
-                "4.2 Testing",
+                "4.1 Roles and Responsibilities",
+                "4.2 Weekly Log (Technical Details)",
+                "4.3 Description of Project(s) Involved",
+                "4.4 Tasks / Activities Performed",
             ],
             "chapter 5": [
                 "5.1 Conclusion",
-                "5.2 Future Recommendations",
+                "5.2 Learning Outcome",
+                # NOTE: Future Recommendations chhaina internship ma
             ],
         },
     },
@@ -404,7 +411,30 @@ def check_structure(text, doc_type="project_2"):
                 if all(w in nearby for w in words[1:]):
                     found.append(section)
                     continue
-
+        # Doc type anusar section number mapping farak
+        if doc_type == "internship":
+            section_num_map = {
+                "background study": "3.1",
+                "literature review": "3.2",
+                "organization details": "2.1",
+                "organizational hierarchy": "2.2",
+                "working domains": "2.3",
+                "intern department": "2.4",
+                "roles and responsibilities": "4.1",
+                "weekly log": "4.2",
+                "conclusion": "5.1",
+                "learning outcome": "5.2",
+            }
+        else:
+            section_num_map = {
+                "background study": "2.1",
+                "literature review": "2.2",
+                "system analysis": "3.1",
+                "tools used": "4.1.1",
+                "unit testing": "4.2.1",
+                "system testing": "4.2.2",
+                "future recommendations": "5.3",
+        }
         # Abbreviation / alternate forms
         alternates = {
             "cover page": [
@@ -446,12 +476,12 @@ def check_structure(text, doc_type="project_2"):
                 "abstract"
             ],
             "background study": [
-                "background study", "2.1", "background and",
-                "background of", "theoretical background"
+                "background study", "background and",
+                "background of", "theoretical background", section_num_map.get("background study", "2.1")
             ],
             "literature review": [
-                "literature review", "2.2", "related work",
-                "related studies", "review of literature"
+                "literature review", "related work",
+                "related studies", "review of literature", section_num_map.get("literature review", "2.2")
             ],
             "system analysis": [
                 "system analysis", "3.1", "requirement analysis",
@@ -532,6 +562,38 @@ def check_structure(text, doc_type="project_2"):
                 "appendix", "appendices", "screen shot",
                 "screenshot", "source code"
             ],
+            "mentor's recommendation": [
+                "mentor", "mentor's recommendation", "mentors recommendation",
+                "recommendation from company", "company mentor"
+            ],
+            "organization details": [
+                "organization details", "organisation details",
+                "introduction to organization", section_num_map.get("organization details", "2.1"),
+            ],
+            "organizational hierarchy": [
+                "organizational hierarchy", "organisational hierarchy",
+                "org hierarchy", section_num_map.get("organizational hierarchy", "2.2"),
+            ],
+            "working domains": [
+                "working domains", "domain of organization", section_num_map.get("working domains", "2.3")
+            ],
+            "intern department": [
+                "intern department", "internship department",
+                "description of intern", section_num_map.get("intern department", "2.4"),
+            ],
+            "roles and responsibilities": [
+                "roles and responsibilities", "role and responsibility", section_num_map.get("roles and responsibilities", "4.1")
+            ],
+            "weekly log": [
+                "weekly log", "weekly diary", "weekly activity", section_num_map.get("weekly log", "4.2"),
+            ],
+            "tasks": [
+                "tasks", "activities performed", "task performed", section_num_map.get("tasks", "4.4"),
+            ],
+            "learning outcome": [
+                "learning outcome", "lesson learnt", "lesson learned",
+                "outcome", section_num_map.get("learning outcome", "5.2"),
+            ],
         }
 
         alt_list = alternates.get(section_lower, [])
@@ -604,9 +666,17 @@ def detect_group_members(text):
     skip_keywords = [
         'submitted', 'roll', 'regd', 'exam', 'month', 'year',
         'tribhuvan', 'department', 'college', 'supervisor',
-        'under', 'faculty', 'partial', 'fulfillment'
+        'under', 'faculty', 'partial', 'fulfillment',
+        'supervision', 'supervised', 'mr.', 'ms.', 'dr.',
+        'prof.', 'lecturer', 'professor', 'dean', 'head of department',
+        'january', 'february', 'march', 'april', 'may', 'june',  # ← thap
+        'july', 'august', 'september', 'october', 'november', 'december'
     ]
     for line in lines[1:]:
+        line_lower = line.lower()
+        # Supervisor section dekhinasamma stop
+        if 'supervision' in line_lower or 'supervisor' in line_lower:
+            break
         if any(kw in line.lower() for kw in skip_keywords):
             continue
         if re.match(r'^\d', line):
@@ -664,7 +734,32 @@ def validate_group(text, doc_type="project_2"):
                     "Exam Roll No., and TU Regd. No. for all members."
                 )
             })
-
+    # Internship — must be individual (TU CDC explicitly says "Individual Report" for CAIN403)
+    elif doc_type == "internship":
+        if count and count > 1:
+            issues.append({
+                "type": "error",
+                "message": (
+                    f"{count} members detected. "
+                    "TU BCA Internship report must be INDIVIDUAL. "
+                    "Even if internship was done in groups at same organization, "
+                    "each student must submit a separate individual report."
+                )
+            })
+        elif count == 1:
+            issues.append({
+                "type": "success",
+                "message": "Individual internship report detected ✓"
+            })
+        else:
+            issues.append({
+                "type": "warning",
+                "message": (
+                    "Could not detect member count. "
+                    "Internship report must be individual — "
+                    "only one student's name should appear in 'Submitted by' section."
+                )
+            })
     # Project III — individual only
     elif doc_type == "project_3":
         if count and count > 1:
@@ -687,3 +782,101 @@ def validate_group(text, doc_type="project_2"):
         "roll_nos": member_info.get("roll_nos", []),
         "group_feedback": issues,
     }
+
+def check_numbering_consistency(text, doc_type="project_2"):
+    issues = []
+    text_lower = text.lower()
+
+    # ── PROPOSAL vs FINAL REPORT DETECTION ──
+    
+    # Internship proposal keywords
+    internship_proposal_keywords = [
+        'expected outcome of internship',
+        'internship proposal defense',
+        'description of internship work',
+        'expected outcome',
+        'internship plan',
+        'proposal defense',
+    ]
+
+    # Project proposal keywords
+    project_proposal_keywords = [
+        'gantt chart',
+        'expected outcome',
+        'proposal defense',
+        'high level design of system',
+        'requirement identification',
+        'feasibility study',  # proposal ma hunxa tara context farak
+        'project proposal',
+    ]
+
+    # Final report must-have keywords
+    final_report_keywords = {
+        "project_1": ['implementation', 'testing', 'test cases', 'source code', 'conclusion'],
+        "project_2": ['implementation', 'testing', 'test cases', 'source code', 'conclusion'],
+        "project_3": ['implementation', 'testing', 'result analysis', 'conclusion'],
+        "internship": ['roles and responsibilities', 'weekly log', 'learning outcome', 'conclusion'],
+    }
+
+    if doc_type == "internship":
+        found_proposal = [kw for kw in internship_proposal_keywords if kw in text_lower]
+        if found_proposal:
+            issues.append({
+                "type": "error",
+                "message": (
+                    "🚨 This appears to be an INTERNSHIP PROPOSAL, not a Final Report. "
+                    f"Proposal content detected: '{found_proposal[0]}'. "
+                    "Final internship report must have: "
+                    "Ch2=Organization Intro, Ch3=Background Study & Lit Review, "
+                    "Ch4=Internship Activities, Ch5=Conclusion & Learning Outcome."
+                )
+            })
+    else:
+        found_proposal = [kw for kw in project_proposal_keywords if kw in text_lower]
+        must_have = final_report_keywords.get(doc_type, [])
+        has_final_content = any(kw in text_lower for kw in must_have)
+
+        if found_proposal and not has_final_content:
+            issues.append({
+                "type": "error",
+                "message": (
+                    f"🚨 This appears to be a PROJECT PROPOSAL, not a Final Report. "
+                    f"Proposal content detected: '{found_proposal[0]}'. "
+                    "Final report must include implementation, testing, and conclusion chapters."
+                )
+            })
+        elif found_proposal and has_final_content:
+            issues.append({
+                "type": "warning",
+                "message": (
+                    f"⚠️ Some proposal-specific content detected ('{found_proposal[0]}'). "
+                    "Ensure this is intentional — final reports should not include proposal sections."
+                )
+            })
+
+    # ── WRONG CHAPTER NUMBERING ──
+    for chap_num in range(2, 6):
+        pattern = rf'chapter\s+{chap_num}.*?1\.\d+'
+        match = re.search(pattern, text_lower[:8000], re.DOTALL)
+        if match:
+            issues.append({
+                "type": "warning",
+                "message": (
+                    f"Chapter {chap_num} sub-sections use wrong numbering (1.x). "
+                    f"Should be {chap_num}.1, {chap_num}.2, {chap_num}.3..."
+                )
+            })
+            break  # ek palta matra dekhau
+
+    # ── DEVELOPMENT METHODOLOGY in Internship ──
+    if doc_type == "internship" and '1.5 development methodology' in text_lower:
+        issues.append({
+            "type": "warning",
+            "message": (
+                "Development Methodology (1.5) detected — this belongs in Project reports. "
+                "Internship Chapter 1 should have: 1.1 Introduction, 1.2 Problem Statement, "
+                "1.3 Objectives, 1.4 Scope & Limitation, 1.5 Report Organization."
+            )
+        })
+
+    return issues
