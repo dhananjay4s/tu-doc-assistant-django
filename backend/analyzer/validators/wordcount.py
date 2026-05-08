@@ -21,74 +21,172 @@ def extract_section_text(full_text, section_keyword, end_markers=None):
     text_lower = full_text.lower()
     keyword_lower = section_keyword.lower()
 
-    idx = -1
-    search_start = 0
-
+    # All positions find
+    all_positions = []
+    start = 0
     while True:
-        found = text_lower.find(keyword_lower, search_start)
-        if found == -1:
+        pos = text_lower.find(keyword_lower, start)
+        if pos == -1:
             break
+        all_positions.append(pos)
+        start = pos + 1
 
-        after = text_lower[found + len(keyword_lower): found + len(keyword_lower) + 30]
-        after_stripped = after.strip()
-        is_toc = bool(re.match(r'^[\s\.…]{0,10}\d+\s*$', after_stripped))
-        if is_toc:
-            search_start = found + 1
-            continue
-
-        sample_check = full_text[found: found + 500]
-        if len(sample_check.split()) > 30:
-            idx = found
-            break
-
-        search_start = found + 1
-
-    if idx == -1:
+    if not all_positions:
+        # Numbered prefix fallback
         patterns = [
             r'\d+\.\d+\s+' + re.escape(keyword_lower),
-            r'chapter\s+\d+[:\s]+' + re.escape(keyword_lower),
+            r'chapter\s*[-–]?\s*\d+[:\s]+' + re.escape(keyword_lower),
         ]
         for pat in patterns:
             m = re.search(pat, text_lower)
             if m:
-                idx = m.start()
+                all_positions.append(m.start())
                 break
+
+    if not all_positions:
+        return None
+
+    # Best position — TOC skip, actual chapter heading find
+    idx = -1
+    for pos in all_positions:
+        after = text_lower[pos + len(keyword_lower): pos + len(keyword_lower) + 80]
+        after_clean = after.strip()
+
+        # TOC entry patterns
+        toc_patterns = [
+            r'^[\s\.…\-]{0,20}\d+\s*$',
+            r'^[\s\.…\-]{0,20}\d+\s*\n',
+            r'^\s*\d{1,3}\s*$',
+            r'^[\s\.]{3,}\d+',
+        ]
+        is_toc = any(re.match(p, after_clean) for p in toc_patterns)
+
+        # Before keyword — dots/spaces = TOC
+        if not is_toc:
+            before = text_lower[max(0, pos - 60):pos]
+            if re.search(r'\.{3,}|\s{8,}', before):
+                is_toc = True
+
+        if is_toc:
+            continue
+
+        # Valid — must have real content after (not just injected keywords)
+        ahead = full_text[pos: pos + 300]
+        real_words = [w for w in ahead.split() 
+                     if len(w) > 2 and w.lower() not in 
+                     ['the', 'and', 'for', 'are', 'was', 'page', 'cover', 'title']]
+        if len(real_words) < 15:
+            continue
+
+        idx = pos
+        break
+
+    # Fallback — last position
+    if idx == -1 and all_positions:
+        idx = all_positions[-1]
 
     if idx == -1:
         return None
 
-    end_idx = min(len(full_text), idx + 15000)
+    # Smart end boundary
+    end_idx = min(len(full_text), idx + 12000)
+
     if end_markers:
         for marker in end_markers:
-            search_pos = idx + len(keyword_lower) + 200
-            while True:
-                next_idx = text_lower.find(marker.lower(), search_pos)
-                if next_idx == -1:
+            search_pos = idx + len(keyword_lower) + 100
+            while search_pos < end_idx:
+                next_pos = text_lower.find(marker.lower(), search_pos)
+                if next_pos == -1:
                     break
-                after = text_lower[next_idx + len(marker): next_idx + len(marker) + 30]
-                is_toc = bool(re.match(r'^[\s\.…]{0,10}\d+\s*$', after.strip()))
+
+                # TOC skip
+                after = text_lower[next_pos + len(marker): next_pos + len(marker) + 80]
+                after_clean = after.strip()
+                toc_patterns = [
+                    r'^[\s\.…\-]{0,20}\d+\s*$',
+                    r'^[\s\.]{3,}\d+',
+                ]
+                is_toc = any(re.match(p, after_clean) for p in toc_patterns)
+
+                if not is_toc:
+                    before = text_lower[max(0, next_pos - 60): next_pos]
+                    if re.search(r'\.{3,}|\s{8,}', before):
+                        is_toc = True
+
                 if is_toc:
-                    search_pos = next_idx + 1
+                    search_pos = next_pos + 1
                     continue
-                if next_idx < end_idx:
-                    end_idx = next_idx
+
+                if next_pos < end_idx:
+                    end_idx = next_pos
                 break
 
-    return full_text[idx:end_idx]
+    extracted = full_text[idx:end_idx]
+
+    # Abstract specific — injected keywords hatau
+    # "abstract\ncover page\ntitle page\n..." jasto injected content skip
+    if keyword_lower == "abstract":
+        
+        lines = extracted.split('\n')
+        real_lines = []
+        skip_next = True
+        inject_kws = [
+            'cover page', 'title page', 'table of contents',
+            'submitted by', 'tribhuvan university', 'acknowledgement',
+            'list of', 'chapter 1', 'chapter 2',
+        ]
+        for line in lines:
+            line_lower = line.lower().strip()
+            if any(kw in line_lower for kw in inject_kws):
+                continue  # injected content skip
+
+            # "keywords:" line pachhi skip
+            if line_lower.startswith('keyword'):
+                break
+            real_lines.append(line)
+        extracted = '\n'.join(real_lines)
+
+    if len(extracted.split()) < 5:
+        return None
+
+    return extracted
 
 
 def check_wordcount(text, doc_type="project_2"):
 
     PROJECT_MARKERS = {
-        "abstract": ["chapter 1", "introduction", "table of"],
-        "introduction": ["chapter 2", "background study", "literature review"],
-        "background study": ["literature review", "2.2", "chapter 3"],
-        "literature review": ["chapter 3", "system analysis", "3.1"],
-        "system analysis": ["chapter 4", "implementation", "4.1"],
-        "methodology": ["chapter 3", "system analysis", "chapter 4"],
-        "implementation": ["testing", "4.2", "chapter 5"],
-        "conclusion": ["future recommendation", "5.2", "references"],
-        "future recommendations": ["references", "bibliography", "appendix"],
+        "abstract": [
+            "acknowledgement", "acknowledgment",
+            "table of contents", "chapter 1",
+        ],
+        "introduction": [
+            "chapter 2", "background study",
+            "2.1 background",
+        ],
+        "background study": [
+            "literature review", "2.2 literature",
+            "related work",
+        ],
+        "literature review": [
+            "chapter 3", "system analysis",
+            "3. system", "3.1",
+        ],
+        "system analysis": [
+            "chapter 4", "implementation", "4.1",
+        ],
+        "methodology": [
+            "chapter 3", "system analysis", "chapter 4",
+        ],
+        "implementation": [
+            "testing", "4.2", "chapter 5",
+        ],
+        "conclusion": [
+            "future recommendation", "5.2",
+            "5.3", "references",
+        ],
+        "future recommendations": [
+            "references", "bibliography", "appendix",
+        ],
     }
 
     INTERNSHIP_MARKERS = {
@@ -130,9 +228,11 @@ def check_wordcount(text, doc_type="project_2"):
         sample = extract_section_text(text, section, end_markers)
 
         if sample is None:
+            # print(f"DEBUG [{section}]: NOT FOUND")
             continue
 
         wc = count_words(sample)
+        # print(f"DEBUG [{section}]: {wc} words | sample: {sample[:100].strip()}")
 
         if wc < lim["min"]:
             results.append({

@@ -3,17 +3,35 @@ import docx
 import io
 
 def extract_from_pdf(file_bytes):
-    """
-    Extract text from PDF using pdfplumber
-    """
     try:
+        text_parts = []
         with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
-            text_parts = []
-
             for page in pdf.pages:
-                text = page.extract_text()
+                # Better text extraction with layout preservation
+                text = page.extract_text(x_tolerance=3, y_tolerance=3)
                 if text:
-                    text_parts.append(text)
+                    # Preserve chapter headings — uppercase lines likely headings
+                    lines = text.split('\n')
+                    processed = []
+                    for line in lines:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        # Heading detect — short uppercase lines
+                        if line.isupper() and len(line) < 80:
+                            processed.append(f"\n{line}\n")
+                        # Chapter heading detect
+                        elif line.lower().startswith('chapter'):
+                            processed.append(f"\n{line}\n")
+                        # Section number detect — "1.1", "2.3" etc
+                        elif len(line) < 100 and line[:3].replace('.','').isdigit():
+                            processed.append(f"\n{line}\n")
+                        else:
+                            processed.append(line)
+                    text_parts.append('\n'.join(processed))
+
+        if not text_parts:
+            raise ValueError("PDF ma text fela parena. Scanned image PDF ho ki check garnus.")
 
         return "\n".join(text_parts)
 
@@ -111,7 +129,7 @@ def extract_formatting_from_docx(file_bytes):
 
     # --- Page margins check ---
     try:
-        from docx.util import Inches
+        from docx import Inches
         section = doc.sections[0]
         left_margin = round(section.left_margin.inches, 2)
         right_margin = round(section.right_margin.inches, 2)
@@ -160,7 +178,7 @@ def extract_formatting_from_docx(file_bytes):
 
     # --- Page size check (A4) ---
     try:
-        from docx.util import Mm
+        from docx import Mm
         section = doc.sections[0]
         width_mm = round(section.page_width.mm)
         height_mm = round(section.page_height.mm)
@@ -308,56 +326,3 @@ def extract_formatting_from_docx(file_bytes):
         "formatting_hints": issues + suggestions + passed
     }
 
-def detect_group_members(text):
-    """
-    Cover page bata submitted by section ma
-    kati jana members xa detect garne.
-    """
-    import re
-    text_lower = text.lower()
-    
-    # "Submitted by" section khojne
-    submitted_idx = text_lower.find("submitted by")
-    if submitted_idx == -1:
-        return {"count": None, "names": [], "roll_nos": []}
-    
-    # Next 400 chars sample
-    sample = text[submitted_idx: submitted_idx + 400]
-    
-    # TU Roll numbers pattern — e.g. "76-230-001"
-    roll_pattern = re.compile(r'\b\d{2}[-/]\d{3}[-/]\d{3}\b')
-    rolls = roll_pattern.findall(sample)
-    
-    # TU Regd No pattern — e.g. "2-2-304-67-2019"  
-    regd_pattern = re.compile(r'\b\d[-\d]{6,}\b')
-    regds = regd_pattern.findall(sample)
-    
-    # Name detection — lines after "Submitted by" 
-    # that are not roll/regd/date
-    lines = [l.strip() for l in sample.split('\n') if l.strip()]
-    name_lines = []
-    skip_keywords = [
-        'submitted', 'roll', 'regd', 'exam', 'month', 'year',
-        'tribhuvan', 'department', 'college', 'supervisor',
-        'under', 'faculty', 'partial', 'fulfillment'
-    ]
-    for line in lines[1:]:  # skip "Submitted by" line itself
-        line_lower = line.lower()
-        if any(kw in line_lower for kw in skip_keywords):
-            continue
-        if re.match(r'^\d', line):  # starts with number = roll/regd
-            continue
-        if len(line) > 5 and len(line) < 60:  # reasonable name length
-            name_lines.append(line)
-        if len(name_lines) >= 2:
-            break
-
-    # Member count — roll numbers nai most reliable
-    count = len(rolls) if rolls else len(name_lines) if name_lines else None
-    count = min(count, 2) if count else None  # TU max = 2
-
-    return {
-        "count": count,
-        "names": name_lines[:2],
-        "roll_nos": rolls[:2],
-    }

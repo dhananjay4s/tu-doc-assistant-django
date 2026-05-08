@@ -8,8 +8,6 @@ from .validators.language import check_language
 from .validators.formatting import check_formatting_hints
 from .utils.file_extractor import extract_from_pdf, extract_from_docx, extract_formatting_from_docx
 from .validators.feedback_generator import (
-    generate_passive_fixes,
-    generate_informal_fixes,
     generate_section_feedback,
     generate_wordcount_feedback,
 )
@@ -60,6 +58,7 @@ def analyze_document(request):
       - OR plain text via JSON { "text": "...", "doc_type": "..." }
     """
     doc_type = request.data.get('doc_type', 'project_2')
+    print(f"DEBUG doc_type received: {doc_type}")
     file = request.FILES.get('file', None)
     text = request.data.get('text', '').strip()
 
@@ -96,7 +95,7 @@ def analyze_document(request):
     if not text:
         return Response({"error": "Document text vaa file required xa."}, status=400)
     if len(text.split()) < 30:
-        return Response({"error": "Document धेरै छोटो छ. Full document upload/paste garnus."}, status=400)
+        return Response({"error": "Document content is too short. Full document upload/paste garnus."}, status=400)
 
     # Run validators
     structure = check_structure(text, doc_type)
@@ -106,11 +105,9 @@ def analyze_document(request):
     language = check_language(text, doc_type)
     formatting = docx_formatting if docx_formatting else check_formatting_hints(text, doc_type)
 
-    # Enhanced feedback
-    passive_fixes = generate_passive_fixes(text)
-    informal_fixes = generate_informal_fixes(text)
+    # Enhanced feedback generation
     section_guides = generate_section_feedback(structure['missing'], structure['found'], text, doc_type)
-    enhanced_wordcount = generate_wordcount_feedback(wordcount['section_results'])
+    enhanced_wordcount = generate_wordcount_feedback(wordcount['section_results'], doc_type)
 
     # Score
     # Word count — score ma count nagarne (suggestion matra ho)
@@ -118,12 +115,19 @@ def analyze_document(request):
     wc_score = 15  # always full marks — format/structure nai important
 
     # Score
+    is_proposal = any(
+        i.get('type') == 'error' and 'PROPOSAL' in i.get('message', '')
+        for i in numbering_issues
+    )
     structure_score = round((structure['sections_found'] / structure['total_required']) * 50)
     language_score = max(0, 35 - (len(language['issues']) * 8) - (len(language['warnings']) * 3))
     fmt_errors = len([f for f in formatting['formatting_hints'] if f['type'] == 'error'])
     fmt_score = max(0, 15 - (fmt_errors * 4))
-
+    
     total_score = min(100, structure_score + language_score + wc_score + fmt_score)
+
+    if is_proposal:
+        total_score = min(total_score, 20)  # cap proposal score at 20
 
     return Response({
         "doc_type": doc_type,
@@ -156,4 +160,5 @@ def analyze_document(request):
         "formatting": formatting['formatting_hints'],
         "grammar_issues": language.get('grammar_issues', []),
         "ieee_results": language.get('ieee_results', []),
+        "academic_tone": language.get('academic_tone', []),
     })

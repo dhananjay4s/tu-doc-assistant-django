@@ -189,7 +189,7 @@ TEMPLATES = {
             "mentor's recommendation",      # ← Company bata
             "supervisor's recommendation",  # ← College bata
             "letter of approval",           # ← Examiner approval
-            "acknowledgement"
+            "acknowledgement",
             "abstract",
             "table of contents",
             "list of abbreviations",
@@ -387,8 +387,13 @@ FORMATTING_STANDARDS = {
 
 def check_structure(text, doc_type="project_2"):
     template = TEMPLATES.get(doc_type, TEMPLATES["project_2"])
+    
+    # Specific normalize — sabai hyphen hoina, chapter matra
     text_lower = text.lower()
-
+    text_lower = text_lower.replace('chapter-', 'chapter ')
+    text_lower = text_lower.replace('chapter –', 'chapter ')
+    text_lower = text_lower.replace('chapter —', 'chapter ')
+    
     found = []
     missing = []
 
@@ -594,6 +599,20 @@ def check_structure(text, doc_type="project_2"):
                 "learning outcome", "lesson learnt", "lesson learned",
                 "outcome", section_num_map.get("learning outcome", "5.2"),
             ],
+            "scope and limitation": [
+                "scope and limitation",
+                "scope and limitations", 
+                "scope of the system",
+                "1.4",                 # ← section number
+                "scope",                  # ← single word
+                "limitation",             # ← single word   
+            ],
+            "report organization": [
+                "report organization",
+                "organization of report",
+                "report organisation",
+                "1.5", "1.6",            # ← project_1 ma 1.5, project_2 ma 1.6
+            ],
         }
 
         alt_list = alternates.get(section_lower, [])
@@ -606,7 +625,7 @@ def check_structure(text, doc_type="project_2"):
     # Chapters found
     chapters_found = []
     for i in range(1, 6):
-        patterns = [f"chapter {i}", f"chapter{i}", f"ch {i}", f"ch.{i}"]
+        patterns = [f"chapter {i}", f"chapter{i}",f"chapter-{i}", f"ch {i}", f"ch.{i}", f"ch-{i}",]
         if any(p in text_lower for p in patterns):
             chapters_found.append(f"Chapter {i}")
 
@@ -658,8 +677,19 @@ def detect_group_members(text):
         return {"count": None, "names": [], "roll_nos": []}
 
     sample = text[submitted_idx: submitted_idx + 400]
+
+    # Exam symbol no — 9 digits (e.g. 122802072)
+    symbol_pattern = re.compile(r'\b\d{9}\b')
+
+    # TU Regd No — e.g. 6-2-1228-15-2022
+    regd_pattern = re.compile(r'\d{1,2}-\d{1,2}-\d{3,4}-\d{1,3}-\d{4}')
+
+    # Old roll pattern — 76-230-001
     roll_pattern = re.compile(r'\b\d{2}[-/]\d{3}[-/]\d{3}\b')
+    
     rolls = roll_pattern.findall(sample)
+    regds = regd_pattern.findall(sample)
+    symbols = symbol_pattern.findall(sample)
 
     lines = [l.strip() for l in sample.split('\n') if l.strip()]
     name_lines = []
@@ -667,28 +697,52 @@ def detect_group_members(text):
         'submitted', 'roll', 'regd', 'exam', 'month', 'year',
         'tribhuvan', 'department', 'college', 'supervisor',
         'under', 'faculty', 'partial', 'fulfillment',
-        'supervision', 'supervised', 'mr.', 'ms.', 'dr.',
-        'prof.', 'lecturer', 'professor', 'dean', 'head of department',
-        'january', 'february', 'march', 'april', 'may', 'june',  # ← thap
-        'july', 'august', 'september', 'october', 'november', 'december'
+        'supervision', 'supervised', 'january', 'february',
+        'march', 'april', 'may', 'june', 'july', 'august',
+        'september', 'october', 'november', 'december',
+        'report', 'project', 'internship', 'bachelor',
+        'computer', 'application', 'technology', 'management',
+        'information', 'science', 'engineering',
     ]
+
     for line in lines[1:]:
         line_lower = line.lower()
-        # Supervisor section dekhinasamma stop
         if 'supervision' in line_lower or 'supervisor' in line_lower:
             break
-        if any(kw in line.lower() for kw in skip_keywords):
+        if any(kw in line_lower for kw in skip_keywords):
             continue
         if re.match(r'^\d', line):
             continue
-        if 5 < len(line) < 60:
-            name_lines.append(line)
+        if line.isupper() and len(line) > 5:
+            continue
+        if len(line) > 50:
+            continue
+        if len(line) < 4:
+            continue
+
+        # Fix 2 — bracket content hatauera name check garne
+        # "Naran Khadka [TU Regd. No. 6-2-1228]" → "Naran Khadka"
+        clean_line = re.sub(r'\[.*?\]|\(.*?\)', '', line).strip()
+        if not clean_line:
+            continue
+
+        words = clean_line.split()
+        if len(words) >= 1 and any(w[0].isupper() for w in words if w):
+            name_lines.append(clean_line)
+
         if len(name_lines) >= 2:
             break
 
-    count = len(rolls) if rolls else len(name_lines) if name_lines else None
+    # Fix 3 — regd numbers most reliable for count
+    all_ids = regds or rolls or symbols
+    count = len(all_ids) if all_ids else len(name_lines) if name_lines else None
     count = min(count, 2) if count else None
-    return {"count": count, "names": name_lines[:2], "roll_nos": rolls[:2]}
+
+    return {
+        "count": count,
+        "names": name_lines[:2],
+        "roll_nos": (regds or rolls or symbols)[:2],
+    } 
 
 def validate_group(text, doc_type="project_2"):
     """
@@ -856,8 +910,8 @@ def check_numbering_consistency(text, doc_type="project_2"):
 
     # ── WRONG CHAPTER NUMBERING ──
     for chap_num in range(2, 6):
-        pattern = rf'chapter\s+{chap_num}.*?1\.\d+'
-        match = re.search(pattern, text_lower[:8000], re.DOTALL)
+        pattern = rf'chapter\s*[-–]?\s*{chap_num}[^\n]*\n+\s*1\.\d+\s+\w+'
+        match = re.search(pattern, text_lower[:8000])
         if match:
             issues.append({
                 "type": "warning",
@@ -866,7 +920,7 @@ def check_numbering_consistency(text, doc_type="project_2"):
                     f"Should be {chap_num}.1, {chap_num}.2, {chap_num}.3..."
                 )
             })
-            break  # ek palta matra dekhau
+            break
 
     # ── DEVELOPMENT METHODOLOGY in Internship ──
     if doc_type == "internship" and '1.5 development methodology' in text_lower:
@@ -874,7 +928,7 @@ def check_numbering_consistency(text, doc_type="project_2"):
             "type": "warning",
             "message": (
                 "Development Methodology (1.5) detected — this belongs in Project reports. "
-                "Internship Chapter 1 should have: 1.1 Introduction, 1.2 Problem Statement, "
+                "Internship Chapter 1: 1.1 Introduction, 1.2 Problem Statement, "
                 "1.3 Objectives, 1.4 Scope & Limitation, 1.5 Report Organization."
             )
         })

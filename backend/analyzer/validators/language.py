@@ -1,7 +1,5 @@
 import re
 import spacy
-from functools import lru_cache
-import language_tool_python
 
 # Load spaCy model once
 try:
@@ -14,49 +12,54 @@ except OSError:
 # ─────────────────────────────────────────
 
 def detect_passive_sentences(text):
-    """
-    spaCy dependency parsing use garera passive voice detect garne.
-    Passive = nsubjpass dependency OR auxpass auxiliary verb.
-    """
     if not nlp:
         return [], []
 
-    doc = nlp(text[:50000])  # limit for performance
-    passive_sentences = []
-    active_first_person = []
+    # Process in chunks — full document cover garne
+    chunk_size = 50000
+    all_active = []
+    all_passive = []
 
-    for sent in doc.sents:
-        sent_text = sent.text.strip()
-        if len(sent_text) < 10:
-            continue
+    for i in range(0, min(len(text), 150000), chunk_size):
+        chunk = text[i:i+chunk_size]
+        doc = nlp(chunk)
 
-        has_passive = False
-        has_first_person = False
-        first_person_tokens = []
+        for sent in doc.sents:
+            sent_text = sent.text.strip()
+            if len(sent_text) < 10:
+                continue
 
-        for token in sent:
-            # Passive detection
-            if token.dep_ in ("nsubjpass", "auxpass"):
-                has_passive = True
+            has_passive = False
+            has_first_person = False
+            first_person_tokens = []
 
-            # First person detection
-            if token.text.lower() in ("i", "we", "my", "our", "mine", "ours"):
-                if token.pos_ == "PRON":
-                    has_first_person = True
-                    first_person_tokens.append(token.text)
+            for token in sent:
+                # spaCy v3 passive detection — multiple signals
+                if token.dep_ in ("nsubjpass", "auxpass"):
+                    has_passive = True
+                # Alternative passive signal
+                if token.lemma_ == "be" and token.head.pos_ == "VERB":
+                    if any(c.dep_ == "agent" for c in token.head.children):
+                        has_passive = True
 
-        # Active sentence with first person = problem
-        if has_first_person and not has_passive:
-            active_first_person.append({
-                "sentence": sent_text[:200],
-                "pronouns": list(set(first_person_tokens)),
-                "suggested": _suggest_passive(sent_text),
-            })
+                if token.text.lower() in ("i", "we", "my", "our", "mine", "ours"):
+                    if token.pos_ == "PRON":
+                        has_first_person = True
+                        first_person_tokens.append(token.text)
 
-        elif has_passive:
-            passive_sentences.append(sent_text[:200])
+            if has_first_person and not has_passive:
+                # Skip acknowledgement section — first person allowed there
+                if 'acknowledge' not in sent_text.lower():
+                    all_active.append({
+                        "sentence": sent_text[:200],
+                        "pronouns": list(set(first_person_tokens)),
+                        "suggested": _suggest_passive(sent_text),
+                    })
 
-    return active_first_person, passive_sentences
+            elif has_passive:
+                all_passive.append(sent_text[:200])
+
+    return all_active[:5], all_passive
 
 
 def _suggest_passive(sentence):
@@ -106,6 +109,7 @@ def _get_language_tool():
     global _lt
     if _lt is None:
         try:
+            import language_tool_python
             _lt = language_tool_python.LanguageTool('en-US')
         except Exception:
             _lt = False  # Mark as failed
@@ -121,14 +125,10 @@ def check_grammar(text):
     if not lt:
         return []
 
-    # Sample first 8000 chars for performance
-    sample = text[:8000]
-
-    try:
-        matches = lt.check(sample)
-    except Exception:
-        return []
-
+    # Multiple chunks — 8000 chars bata 3 sections check
+    total_len = len(text)
+    chunk_points = [0, total_len//3, (total_len*2)//3]
+    
     grammar_issues = []
     seen = set()
 
@@ -160,40 +160,46 @@ def check_grammar(text):
         "SUBJECT_VERB_AGREEMENT",
     }
 
-    for match in matches:
-        if match.rule_id in ignore_rules:
-            continue
-        error_text = sample[match.offset: match.offset + match.error_length].strip()
-        if error_text.lower() in ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix', 'x']:
-            continue
-
-        # Avoid duplicates
-        key = f"{match.rule_id}_{match.offset}"
-        if key in seen:
-            continue
-        seen.add(key)
-
-        # Get context
-        context_start = max(0, match.offset - 30)
-        context_end = min(len(sample), match.offset + match.error_length + 30)
-        context = sample[context_start:context_end].replace('\n', ' ').strip()
-
-        # Get suggestion
-        suggestion = match.replacements[0] if match.replacements else None
-
-        priority = "high" if match.rule_id in academic_priority_rules else "normal"
-
-        grammar_issues.append({
-            "rule": match.rule_id,
-            "message": match.message,
-            "context": f"...{context}...",
-            "error_text": sample[match.offset:match.offset + match.error_length],
-            "suggestion": suggestion,
-            "priority": priority,
-        })
-
-        if len(grammar_issues) >= 15:  # limit output
+    for start in chunk_points:
+        if len(grammar_issues) >= 15:
             break
+        sample = text[start:start+8000]
+        if not sample.strip():
+            continue
+
+        try:
+            matches = lt.check(sample)
+        except Exception:
+            continue
+
+        for match in matches:
+            if match.rule_id in ignore_rules:
+                continue
+
+            error_text = sample[match.offset: match.offset + match.error_length].strip()
+            if error_text.lower() in ['i','ii','iii','iv','v','vi','vii','viii','ix','x']:
+                continue
+
+            key = f"{match.rule_id}_{error_text}"
+            if key in seen:
+                continue
+            seen.add(key)
+
+            context_start = max(0, match.offset - 40)
+            context_end = min(len(sample), match.offset + match.error_length + 40)
+            context = sample[context_start:context_end].replace('\n', ' ').strip()
+
+            grammar_issues.append({
+                "rule": match.rule_id,
+                "message": match.message,
+                "context": f"...{context}...",
+                "error_text": error_text,
+                "suggestion": match.replacements[0] if match.replacements else None,
+                "priority": "high" if match.rule_id in academic_priority_rules else "normal",
+            })
+
+            if len(grammar_issues) >= 15:
+                break
 
     return grammar_issues
 
@@ -410,13 +416,101 @@ def check_language(text, doc_type):
         elif r['type'] == 'warning': warnings.append(r)
         else:                        suggestions.append(r)
 
+    # 5. Academic tone specific checks
+    academic_tone_issues = check_academic_tone(text)
+    for issue in academic_tone_issues:
+        if issue['type'] == 'error':
+            issues.append(issue)
+        else:
+            warnings.append(issue)
+
     return {
         "issues": issues,
         "warnings": warnings,
         "suggestions": suggestions,
         "all_feedback": issues + warnings + suggestions,
         "active_first_person": active_first_person[:5],
-        "grammar_issues": grammar_issues[:10],
+        "grammar_issues": grammar_issues[:15],
         "informal_words": informal,
-        "ieee_results": citation_results,  # ← ieee_results → citation_results
+        "ieee_results": citation_results,
+        "academic_tone": academic_tone_issues,
     }
+
+def check_academic_tone(text):
+    """Academic writing specific issues detect garne."""
+    issues = []
+    text_lower = text.lower()
+
+    # 1. Tense consistency — academic reports past/present tense mix
+    future_in_body = re.findall(
+        r'\b(will be|will have|shall be|going to)\b',
+        text_lower
+    )
+    if len(future_in_body) > 5:
+        issues.append({
+            "type": "warning",
+            "message": (
+                f"Future tense used {len(future_in_body)} times. "
+                "Academic reports use past tense for completed work. "
+                "E.g., 'will be implemented' → 'was implemented'."
+            )
+        })
+
+    # 2. Vague quantifiers
+    vague = re.findall(
+        r'\b(some|many|several|various|numerous|a number of|few)\b',
+        text_lower
+    )
+    if len(vague) > 8:
+        issues.append({
+            "type": "warning",
+            "message": (
+                f"Vague quantifiers found {len(vague)} times: {list(set(vague))[:4]}. "
+                "Use specific numbers where possible. "
+                "E.g., 'several tests' → '12 unit tests'."
+            )
+        })
+
+    # 3. Unsupported claims
+    unsupported = re.findall(
+        r'\b(clearly|obviously|it is known|everyone knows|it is clear that)\b',
+        text_lower
+    )
+    if unsupported:
+        issues.append({
+            "type": "warning",
+            "message": (
+                f"Unsupported claim language: {list(set(unsupported))}. "
+                "Academic writing requires evidence-based statements with citations."
+            )
+        })
+
+    # 4. Contractions
+    contractions = re.findall(
+        r"\b(don't|doesn't|isn't|aren't|wasn't|weren't|"
+        r"can't|couldn't|won't|wouldn't|it's|that's|there's)\b",
+        text_lower
+    )
+    if contractions:
+        issues.append({
+            "type": "error",
+            "message": (
+                f"Contractions detected: {list(set(contractions))[:5]}. "
+                "Academic writing requires full forms. "
+                "E.g., 'don't' → 'do not', 'isn't' → 'is not'."
+            )
+        })
+
+    # 5. Short paragraphs (less than 3 sentences)
+    paragraphs = [p.strip() for p in text.split('\n\n') if len(p.strip()) > 50]
+    short_paras = [p[:60] for p in paragraphs if len(p.split('.')) < 3]
+    if len(short_paras) > 5:
+        issues.append({
+            "type": "info",
+            "message": (
+                f"{len(short_paras)} very short paragraphs detected. "
+                "Academic paragraphs should have minimum 3-4 sentences with clear topic sentence."
+            )
+        })
+
+    return issues

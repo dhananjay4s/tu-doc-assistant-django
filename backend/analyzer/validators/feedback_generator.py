@@ -334,10 +334,22 @@ def generate_informal_fixes(text):
 def generate_section_feedback(missing_sections, found_sections, text, doc_type="project_2"):
     """For each missing section, provide detailed content guide."""
     feedback = []
-    guides = INTERNSHIP_SECTION_GUIDES if doc_type == "internship" else SECTION_GUIDES
 
-    for section in missing_sections[:8]:  # limit to 8
-        guide = guides.get(section.lower()) or SECTION_GUIDES.get(section.lower())
+    # Doc type anusar guide select
+    if doc_type == "internship":
+        primary_guides = INTERNSHIP_SECTION_GUIDES
+    else:
+        primary_guides = SECTION_GUIDES  # project_1, project_2, project_3 sabai same
+
+    for section in missing_sections[:8]:
+        guide = primary_guides.get(section.lower())
+
+        # Fallback — other guide ma khoj
+        if not guide:
+            guide = SECTION_GUIDES.get(section.lower())
+        if not guide:
+            guide = INTERNSHIP_SECTION_GUIDES.get(section.lower())
+
         if guide:
             feedback.append({
                 "section": guide["title"],
@@ -348,34 +360,92 @@ def generate_section_feedback(missing_sections, found_sections, text, doc_type="
                 "template": guide.get("template", ""),
             })
         else:
+            # Generic guide — doc_type specific message
+            doc_name = {
+                "project_1": "TU BCA Project I (CACS256)",
+                "project_2": "TU BCA Project II (CAPJ356)",
+                "project_3": "TU BCA Project III (CACS452)",
+                "internship": "TU BCA Internship (CAIN403)",
+            }.get(doc_type, "TU FOHSS")
+
             feedback.append({
                 "section": section.title(),
                 "status": "missing",
-                "must_contain": [f"Add '{section}' section as per TU FOHSS internship guidelines"],
+                "must_contain": [
+                    f"Add '{section}' section as per {doc_name} guidelines",
+                    "Refer to TU FOHSS official report format",
+                ],
                 "tip": "",
             })
 
     return feedback
 
 
-def generate_wordcount_feedback(wordcount_results):
-    """Add specific suggestions for short sections."""
+INTERNSHIP_HOW_TO_FIX = {
+    "organization details": [
+        "Add full company name, address, and registration details",
+        "Describe services/products offered by the company",
+        "Include year of establishment and company size",
+        "Add organizational chart or hierarchy diagram",
+    ],
+    "background study": [
+        "Describe fundamental technologies used during internship",
+        "Explain key concepts related to your internship project",
+        "Cite relevant sources using APA format (Author, Year)",
+        "Avoid basic definitions — relate concepts to your actual work",
+    ],
+    "literature review": [
+        "Review at least 3-5 similar projects or systems",
+        "For each: mention author, system, approach, limitation",
+        "Explain how your internship work differs or improves",
+        "Use APA citation format throughout",
+    ],
+    "roles and responsibilities": [
+        "State your official role/title at the company",
+        "List all responsibilities assigned during internship",
+        "Mention technologies and tools you were expected to use",
+        "Describe your reporting structure",
+    ],
+    "weekly log": [
+        "Include entry for each week of internship (min 8 weeks)",
+        "Each week: what task was assigned, what was done, what was learned",
+        "Be specific — mention actual code, features, or bugs fixed",
+        "Include any problems faced and how they were resolved",
+    ],
+    "conclusion": [
+        "Summarize the overall internship experience",
+        "Mention key achievements during the internship period",
+        "Relate back to your initial objectives — were they met?",
+        "Keep focused — avoid repeating introduction content",
+    ],
+    "learning outcome": [
+        "List specific technical skills gained (e.g., React, Django, Git)",
+        "Mention professional skills developed (communication, teamwork)",
+        "Describe the gap between academic theory and industry practice",
+        "Explain how this internship benefits your future career",
+    ],
+}
+
+def generate_wordcount_feedback(wordcount_results, doc_type="project_2"):
     enhanced = []
     for result in wordcount_results:
         enhanced_result = dict(result)
         section_lower = result['section'].lower()
 
-        if result['type'] == 'warning' and 'short' in result['message'].lower():
-            guide = SECTION_GUIDES.get(section_lower)
-            if guide:
-                enhanced_result['how_to_fix'] = guide.get('must_contain', [])
-                enhanced_result['tip'] = guide.get('tip', '')
-            else:
-                enhanced_result['how_to_fix'] = [
-                    f"Expand the {result['section']} section with more detailed content",
-                    "Add citations and references to support your points",
-                    "Include relevant diagrams and their descriptions",
-                ]
+        if result['type'] == 'info':
+            # Internship sections first
+            if doc_type == "internship":
+                fix = INTERNSHIP_HOW_TO_FIX.get(section_lower)
+                if fix:
+                    enhanced_result['how_to_fix'] = fix
+                    enhanced_result['tip'] = f"Relate all content to your actual internship work at the host organization."
+            
+            # Project sections fallback
+            if 'how_to_fix' not in enhanced_result:
+                guide = SECTION_GUIDES.get(section_lower)
+                if guide:
+                    enhanced_result['how_to_fix'] = guide.get('must_contain', [])
+                    enhanced_result['tip'] = guide.get('tip', '')
 
         enhanced.append(enhanced_result)
     return enhanced

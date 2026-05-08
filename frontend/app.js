@@ -176,14 +176,17 @@ function goToStep2() {
   if (!selectedDocType) return;
 
   // Reference format update
-  const refEl = document.getElementById('ref-format');
+  const refEl = document.getElementById("ref-format");
   if (refEl) {
-    refEl.textContent = selectedDocType === 'internship' ? 'APA format' : 'IEEE format';
+    refEl.textContent =
+      selectedDocType === "internship" ? "APA format" : "IEEE format";
   }
 
   fetch(`${API}/templates/${selectedDocType}/`)
-    .then(res => res.json())
-    .then(data => renderSectionList(data.required_sections, data.optional_sections))
+    .then((res) => res.json())
+    .then((data) =>
+      renderSectionList(data.required_sections, data.optional_sections),
+    )
     .catch((e) => console.error(e));
 
   setStep(2);
@@ -347,18 +350,27 @@ function renderResults(data) {
 
   const fb = document.getElementById("feedback");
   fb.innerHTML = "";
-
-  // ── 0. PROPOSAL vs FINAL REPORT WARNING ──
+  // ── 0. DOCUMENT TYPE CHECK ──
   if (data.numbering_issues?.length > 0) {
-    const hasError = data.numbering_issues.some(n => n.type === 'error');
-    const items = data.numbering_issues.map(n =>
-      `<div class="fb-item ${n.type}">${n.message}</div>`
-    ).join('');
+    const hasError = data.numbering_issues.some((n) => n.type === "error");
+    const items = data.numbering_issues
+      .map((n) => `<div class="fb-item ${n.type}">${n.message}</div>`)
+      .join("");
     fb.innerHTML += buildSection(
-      '🚨 Document Type Check',
-      hasError ? 'error' : 'warning',
-      items
+      "🚨 Document Type Check",
+      hasError ? "error" : "warning",
+      items,
     );
+  }
+
+  // Proposal bhane score circle red
+  const isProposal = data.numbering_issues?.some(
+    (n) => n.type === "error" && n.message.includes("PROPOSAL"),
+  );
+  if (isProposal) {
+    document.getElementById("score-circle").className = "score-circle bad";
+    document.getElementById("score-desc").textContent =
+      "⚠️ This appears to be a proposal — submit your final report";
   }
 
   // ── 1. GROUP VALIDATION ──
@@ -489,6 +501,24 @@ function renderResults(data) {
     );
   }
 
+  // ── ACADEMIC TONE ──
+  if (data.academic_tone?.length > 0) {
+    const items = data.academic_tone
+      .map(
+        (f) => `
+      <div class="fb-item ${f.type}">
+        ${f.type === "error" ? "❌" : f.type === "warning" ? "⚠️" : f.type === "success" ? "✅" : "ℹ️"}
+        ${f.message}
+      </div>`,
+      )
+      .join("");
+    fb.innerHTML += buildSection(
+      "🎓 Academic Tone",
+      getBadgeType(data.academic_tone),
+      items,
+    );
+  }
+
   // ── 6. INFORMAL LANGUAGE ──
   if (data.informal_fixes?.length > 0) {
     let html = `<div class="fb-item warning">⚠️ Informal vocabulary found — replace with academic terms:</div>
@@ -562,18 +592,32 @@ function renderResults(data) {
   }
 
   // ── Template info ──
-  fb.innerHTML += buildSection("ℹ️ Analysis Info", "info", `
+  fb.innerHTML += buildSection(
+    "ℹ️ Analysis Info",
+    "info",
+    `
         <div class="fb-item info">
           <strong>Template:</strong> ${data.template_name} ·
           <strong>Code:</strong> ${data.course_code} ·
           <strong>File:</strong> ${(data.file_type || "text").toUpperCase()} ·
           <strong>Referencing:</strong> ${data.doc_type === "internship" ? "APA" : "IEEE"}
-        </div>`);
+        </div>`,
+  );
 }
 
 // ─────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────
+function icon(type) {
+  return type === "error"
+    ? "❌"
+    : type === "warning"
+      ? "⚠️"
+      : type === "success"
+        ? "✅"
+        : "ℹ️";
+}
+
 function buildSection(title, badgeType, content) {
   const badgeText = {
     error: "Action needed",
@@ -770,6 +814,8 @@ function downloadReport() {
       padding-top: 16px;
       margin-top: 30px;
     }
+    .fb-item.expandable{display:block}
+    .fb-expand-content{display:block!important}
     @media print {
       body { padding: 20px; }
       .score-box { page-break-inside: avoid; }
