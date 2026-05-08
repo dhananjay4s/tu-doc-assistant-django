@@ -10,28 +10,26 @@ A rule-based academic document validator for **Tribhuvan University (TU) FOHSS**
 |----------|----------|-------------|
 | 4th | Project I | CACS256 |
 | 6th | Project II | CAPJ356 |
-| 7th | Internship Report | CACS357 |
+| 7th | Internship Report | CAIN403 |
 | 8th | Project III | CACS452 |
 
 ---
 
 ## Features
-
-- Section structure detection (required vs missing)
+- Section structure detection (required vs missing sections)
+- Proposal vs final report detection
 - Grammar analysis using spaCy + LanguageTool
 - Passive voice / first-person detection with fix suggestions
 - Informal vocabulary checker with academic replacements
-- IEEE citation format validation
+- Academic tone check (contractions, future tense, vague language)
+- IEEE citation validation (Projects) / APA citation validation (Internship)
 - DOCX formatting check (font, margins, spacing, page size)
-- Group member detection (1 or 2 members)
+- Group member detection with roll/regd number parsing
+- Proposal vs final report detection
+- Chapter numbering consistency check
 - PDF + DOCX file upload support
-- Analysis report download (PDF)
-- Word count analysis with TOC-aware section detection
-- Roman numeral false positive filtering (i, ii, iii)
-- Nepali name spelling false positive suppression
-- Group member detection with roll number parsing
+- TOC-aware word count analysis per section
 - Analysis report download (print-to-PDF)
-
 ---
 
 ## Tech Stack
@@ -200,6 +198,7 @@ Content-Type: application/json
 | Referencing | IEEE format |
 | Binding | Golden Embracing, Black Cover |
 | Copies | 3 (Library + Self + Dean Office) |
+| Referencing | IEEE format (Projects) / APA format (Internship) |
 
 ---
 
@@ -217,14 +216,14 @@ This project is built for TU BCA students. Contributions welcome:
 
 ## Dependencies
 
-django==4.2.7
-djangorestframework==3.14.0
-django-cors-headers==4.3.1
-pdfplumber==0.10.3
-python-docx==1.1.0
-spacy==3.7.4
-language-tool-python==2.7.1
-python-dotenv==1.0.0
+django
+djangorestframework
+django-cors-headers
+pdfplumber
+python-docx
+spacy
+language-tool-python
+python-dotenv
 
 ---
 
@@ -237,5 +236,4 @@ MIT License — free to use and modify.
 ## Acknowledgements
 
 - Tribhuvan University, Faculty of Humanities and Social Sciences
-- United College, Kumaripati (Project II Guidelines 2024)
-- TU CDC Official BCA Curriculum Documents
+- TU CDC Official BCA Curriculum Syllabus, Documents
