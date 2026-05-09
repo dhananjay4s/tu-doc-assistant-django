@@ -545,7 +545,11 @@ function renderResults(data) {
   const wcSuccess = (data.wordcount || []).filter((w) => w.type === "success");
   if (wcInfo.length > 0 || wcSuccess.length > 0) {
     let html = `<div class="fb-item info" style="margin-bottom:.5rem">
-      ℹ️ <strong>Note:</strong> Word counts are suggestions, not mandatory TU requirements. Content quality matters more.
+      ℹ️ <strong>Note:</strong> Word counts are <strong>estimates</strong> — 
+      not mandatory TU requirements. Content quality matters more.
+      ${data.file_type === 'pdf' 
+        ? '<br>⚠️ <strong>PDF detected:</strong> Word counts may vary ±20%. Upload <strong>DOCX</strong> for accurate analysis.' 
+        : ''}
     </div>`;
     wcInfo.forEach((w) => {
       html += `<div class="fb-item info expandable">

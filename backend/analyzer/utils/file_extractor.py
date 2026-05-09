@@ -7,24 +7,31 @@ def extract_from_pdf(file_bytes):
         text_parts = []
         with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
             for page in pdf.pages:
-                # Better text extraction with layout preservation
-                text = page.extract_text(x_tolerance=3, y_tolerance=3)
+                try:
+                    # Crop header/footer/page numbers hatau
+                    cropped = page.crop((
+                        page.bbox[0],
+                        page.bbox[1] + 30,
+                        page.bbox[2],
+                        page.bbox[3] - 30
+                    ))
+                    text = cropped.extract_text(x_tolerance=3, y_tolerance=3)
+                except Exception:
+                    # Crop fail bhayo bhane full page use
+                    text = page.extract_text(x_tolerance=3, y_tolerance=3)
+
                 if text:
-                    # Preserve chapter headings — uppercase lines likely headings
                     lines = text.split('\n')
                     processed = []
                     for line in lines:
                         line = line.strip()
                         if not line:
                             continue
-                        # Heading detect — short uppercase lines
                         if line.isupper() and len(line) < 80:
                             processed.append(f"\n{line}\n")
-                        # Chapter heading detect
                         elif line.lower().startswith('chapter'):
                             processed.append(f"\n{line}\n")
-                        # Section number detect — "1.1", "2.3" etc
-                        elif len(line) < 100 and line[:3].replace('.','').isdigit():
+                        elif len(line) < 100 and line[:3].replace('.', '').isdigit():
                             processed.append(f"\n{line}\n")
                         else:
                             processed.append(line)
@@ -37,7 +44,7 @@ def extract_from_pdf(file_bytes):
 
     except Exception as e:
         raise ValueError(f"PDF read garna sakiyena: {str(e)}")
-    
+        
 def extract_from_docx(file_bytes):
     """
     Extract text from DOCX — preserves heading structure
@@ -129,7 +136,7 @@ def extract_formatting_from_docx(file_bytes):
 
     # --- Page margins check ---
     try:
-        from docx import Inches
+        from docx.util import Inches
         section = doc.sections[0]
         left_margin = round(section.left_margin.inches, 2)
         right_margin = round(section.right_margin.inches, 2)
@@ -178,7 +185,7 @@ def extract_formatting_from_docx(file_bytes):
 
     # --- Page size check (A4) ---
     try:
-        from docx import Mm
+        from docx.util import Mm
         section = doc.sections[0]
         width_mm = round(section.page_width.mm)
         height_mm = round(section.page_height.mm)

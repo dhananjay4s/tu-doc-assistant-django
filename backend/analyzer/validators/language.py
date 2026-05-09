@@ -3,9 +3,12 @@ import spacy
 
 # Load spaCy model once
 try:
-    nlp = spacy.load("en_core_web_sm")
+    nlp = spacy.load("en_core_web_md")  # md > sm
 except OSError:
-    nlp = None
+    try:
+        nlp = spacy.load("en_core_web_sm")  # fallback
+    except OSError:
+        nlp = None
 
 # ─────────────────────────────────────────
 # PASSIVE VOICE DETECTION via spaCy
@@ -136,14 +139,21 @@ def check_grammar(text):
     ignore_rules = {
         "WHITESPACE_RULE",
         "COMMA_PARENTHESIS_WHITESPACE",
-        "EN_QUOTES",
-        "DASH_RULE",
+        "EN_QUOTES", "DASH_RULE",
         "WORD_CONTAINS_UNDERSCORE",
-        "UPPERCASE_SENTENCE_START",  # headings often uppercase
-        "MORFOLOGIK_RULE_EN_US",  # ← Nepali names spelling false positive hatauxa
-        "SPELLING_RULE",           # ← General spelling checker off
-        "I_LOWERCASE",              # ← Thap: Roman numeral "i" lai pronoun nabhanxa
+        "UPPERCASE_SENTENCE_START",
+        "MORFOLOGIK_RULE_EN_US",
+        "SPELLING_RULE",
+        "I_LOWERCASE",
         "UPPERCASE_ROMAN_NUMERAL",
+        "PUNCTUATION_PARAGRAPH_END",
+        "UNLIKELY_OPENING_PUNCTUATION",
+        "COMMA_COMPOUND_SENTENCE",
+        "EN_UNPAIRED_BRACKETS",
+        "SENTENCE_WHITESPACE",
+        "DOUBLE_PUNCTUATION",
+        "CURRENCY",
+        "ARROWS",
     }
 
     academic_priority_rules = {
