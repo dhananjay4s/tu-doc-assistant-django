@@ -58,7 +58,6 @@ def analyze_document(request):
       - OR plain text via JSON { "text": "...", "doc_type": "..." }
     """
     doc_type = request.data.get('doc_type', 'project_2')
-    print(f"DEBUG doc_type received: {doc_type}")
     file = request.FILES.get('file', None)
     text = request.data.get('text', '').strip()
 
@@ -89,8 +88,7 @@ def analyze_document(request):
                 return Response({"error": str(e)}, status=400)
 
         else:
-            return Response({"error": "Supported file types: PDF, DOCX"}, status=400)
-        
+            return Response({"error": "Supported file types: PDF, DOCX"}, status=400)       
    # Validate text
     if not text:
         return Response({"error": "Document text vaa file required xa."}, status=400)
@@ -98,12 +96,19 @@ def analyze_document(request):
         return Response({"error": "Document content is too short. Full document upload/paste garnus."}, status=400)
 
     # Run validators
-    structure = check_structure(text, doc_type)
-    group_info = validate_group(text, doc_type)
-    numbering_issues = check_numbering_consistency(text, doc_type)
-    wordcount = check_wordcount(text, doc_type)
-    language = check_language(text, doc_type)
-    formatting = docx_formatting if docx_formatting else check_formatting_hints(text, doc_type)
+    try:
+        structure = check_structure(text, doc_type)
+        group_info = validate_group(text, doc_type)
+        numbering_issues = check_numbering_consistency(text, doc_type)
+        wordcount = check_wordcount(text, doc_type)
+        language = check_language(text, doc_type)
+        formatting = docx_formatting if docx_formatting else check_formatting_hints(text, doc_type)
+    except Exception as e:
+        import logging
+        logging.error(f"Analysis error: {str(e)}")
+        return Response({
+            "error": "Analysis failed. Please try again or contact support."
+        }, status=500)
 
     # Enhanced feedback generation
     section_guides = generate_section_feedback(structure['missing'], structure['found'], text, doc_type)
@@ -111,7 +116,7 @@ def analyze_document(request):
 
     # Score
     # Word count — score ma count nagarne (suggestion matra ho)
-    wc_warnings = len(wordcount.get('warnings', []))
+    wc_warnings = len([r for r in wordcount['section_results'] if r['type'] == 'info'])
     wc_score = 15  # always full marks — format/structure nai important
 
     # Score

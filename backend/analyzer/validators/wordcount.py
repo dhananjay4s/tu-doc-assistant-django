@@ -83,10 +83,14 @@ def extract_section_text(full_text, section_keyword, end_markers=None):
 
     # Fallback — last position
     if idx == -1 and all_positions:
-        idx = all_positions[-1]
-
-    if idx == -1:
-        return None
+    # First non-TOC position khoj  ← indent fix
+        for pos in all_positions:
+            ahead = full_text[pos: pos + 200]
+            if len(ahead.split()) > 20:
+                idx = pos
+                break
+        if idx == -1:
+            idx = all_positions[0]
 
     # Smart end boundary
     end_idx = min(len(full_text), idx + 12000)
@@ -129,11 +133,10 @@ def extract_section_text(full_text, section_keyword, end_markers=None):
         
         lines = extracted.split('\n')
         real_lines = []
-        skip_next = True
         inject_kws = [
             'cover page', 'title page', 'table of contents',
             'submitted by', 'tribhuvan university', 'acknowledgement',
-            'list of', 'chapter 1', 'chapter 2',
+            'list of figures', 'list of tables', 'list of abbreviations',
         ]
         for line in lines:
             line_lower = line.lower().strip()

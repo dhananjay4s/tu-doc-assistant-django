@@ -43,6 +43,8 @@ def extract_from_pdf(file_bytes):
         return "\n".join(text_parts)
 
     except Exception as e:
+        if isinstance(e, ValueError):
+            raise
         raise ValueError(f"PDF read garna sakiyena: {str(e)}")
         
 def extract_from_docx(file_bytes):
@@ -109,6 +111,13 @@ def extract_from_docx(file_bytes):
 
     if 'supervisor' in first_text or 'recommendation' in first_text:
         text_parts.insert(0, "supervisor's recommendation\n")
+
+    if 'mentor' in first_text:
+        text_parts.insert(0, "mentor's recommendation\n")
+
+    # Internship report detect
+    if 'internship report' in first_text or 'an internship report' in first_text:
+        text_parts.insert(0, "cover page\ntitle page\n")
 
     if 'acknowledgement' in first_text or 'acknowledge' in first_text:
         text_parts.insert(0, "acknowledgement\n")

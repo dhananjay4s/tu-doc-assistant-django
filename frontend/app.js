@@ -243,6 +243,10 @@ async function analyze() {
     msgEl.textContent = loadMsgs[msgIdx];
   }, 1500);
 
+  // Timeout controller
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 90000); // 90 sec
+
   try {
     let res;
 
@@ -253,48 +257,53 @@ async function analyze() {
       res = await fetch(`${API}/analyze/`, {
         method: "POST",
         body: formData,
+        signal: controller.signal,
       });
     } else {
       res = await fetch(`${API}/analyze/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text, doc_type: selectedDocType }),
+        signal: controller.signal,
       });
     }
 
-    const data = await res.json();
+    clearTimeout(timeout);
     clearInterval(msgTimer);
 
+    const data = await res.json();
+
     if (data.error) {
-      alert("Error: " + data.error);
-      setStep(2);
+      showError("Server error: " + data.error);
       return;
     }
 
     renderResults(data);
-    // Download button
+
     document.querySelector(".results-actions").innerHTML = `
-    <button class="btn-ghost" onclick="goToStep2()">
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-        <path d="M11 7H3M7 3L3 7l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-      </svg>
-      Edit document
-    </button>
-    <button class="btn-ghost" onclick="goToStep1()">Start over</button>
-    <button class="btn-primary" onclick="downloadReport()" style="margin-left:auto">
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-        <path d="M7 1v8M4 10l3 3 3-3M1 10v2a1 1 0 001 1h10a1 1 0 001-1v-2" 
-              stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-      </svg>
-      Download Report
-    </button>
-  `;
+      <button class="btn-ghost" onclick="goToStep2()">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M11 7H3M7 3L3 7l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        Edit document
+      </button>
+      <button class="btn-ghost" onclick="goToStep1()">Start over</button>
+      <button class="btn-primary" onclick="downloadReport()" style="margin-left:auto">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M7 1v8M4 10l3 3 3-3M1 10v2a1 1 0 001 1h10a1 1 0 001-1v-2"
+                stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        Download Report
+      </button>`;
+
   } catch (e) {
+    clearTimeout(timeout);
     clearInterval(msgTimer);
-    alert(
-      "Backend connect huna sakena. Django server chalidai xa ki check garnus.",
-    );
-    setStep(2);
+    if (e.name === "AbortError") {
+      showError("Analysis took too long (90s). Try with a smaller file or use plain text.");
+    } else {
+      showError("Backend connect huna sakena. Django server chalidai xa ki check garnus.");
+    }
   }
 }
 
@@ -547,9 +556,11 @@ function renderResults(data) {
     let html = `<div class="fb-item info" style="margin-bottom:.5rem">
       ℹ️ <strong>Note:</strong> Word counts are <strong>estimates</strong> — 
       not mandatory TU requirements. Content quality matters more.
-      ${data.file_type === 'pdf' 
-        ? '<br>⚠️ <strong>PDF detected:</strong> Word counts may vary ±20%. Upload <strong>DOCX</strong> for accurate analysis.' 
-        : ''}
+      ${
+        data.file_type === "pdf"
+          ? "<br>⚠️ <strong>PDF detected:</strong> Word counts may vary ±20%. Upload <strong>DOCX</strong> for accurate analysis."
+          : ""
+      }
     </div>`;
     wcInfo.forEach((w) => {
       html += `<div class="fb-item info expandable">
@@ -612,6 +623,23 @@ function renderResults(data) {
 // ─────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────
+function showError(msg) {
+  clearInterval(0); // safety
+  document.getElementById("loading").style.display = "none";
+  document.getElementById("results").style.display = "block";
+  document.getElementById("score-banner").style.display = "none";
+  document.getElementById("feedback").innerHTML = `
+    <div class="fb-section">
+      <div class="fb-section-body">
+        <div class="fb-item error">❌ ${msg}</div>
+        <div style="margin-top:.75rem;display:flex;gap:8px">
+          <button class="btn-ghost" onclick="goToStep2()">← Try again</button>
+          <button class="btn-ghost" onclick="goToStep1()">Start over</button>
+        </div>
+      </div>
+    </div>`;
+}
+
 function icon(type) {
   return type === "error"
     ? "❌"
@@ -857,6 +885,10 @@ function downloadReport() {
 
   // Open print dialog — user can Save as PDF
   const win = window.open("", "_blank");
+  if (!win) {  // ← null check chhaina!
+    alert("Popup blocked! Browser settings ma popup allow garnus.");
+    return;
+  }
   win.document.write(html);
   win.document.close();
   win.onload = () => {

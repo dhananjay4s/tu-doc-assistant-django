@@ -66,9 +66,19 @@ def detect_passive_sentences(text):
 
 
 def _suggest_passive(sentence):
-    """
-    Simple rule-based passive suggestion.
-    """
+    # spaCy subject/verb extract garxa bhane specific suggestion
+    if nlp:
+        try:
+            doc = nlp(sentence[:200])
+            subj = next((t.text for t in doc if t.dep_ in ('nsubj', 'nsubjpass')), None)
+            verb = next((t.lemma_ for t in doc if t.pos_ == 'VERB'), None)
+            if subj and verb and subj.lower() in ('i', 'we', 'my', 'our'):
+                return (f"Consider: 'The {verb} was performed' or "
+                        f"restructure to remove '{subj}' as subject.")
+        except Exception:
+            pass
+
+    # Fallback — rule based
     replacements = {
         r'\bI developed\b': 'The system was developed',
         r'\bI implemented\b': 'The implementation was carried out',
@@ -130,7 +140,8 @@ def check_grammar(text):
 
     # Multiple chunks — 8000 chars bata 3 sections check
     total_len = len(text)
-    chunk_points = [0, total_len//3, (total_len*2)//3]
+    step = max(6000, total_len // 4)
+    chunk_points = list(range(0, min(total_len, 30000), step))
     
     grammar_issues = []
     seen = set()
@@ -512,7 +523,7 @@ def check_academic_tone(text):
         })
 
     # 5. Short paragraphs (less than 3 sentences)
-    paragraphs = [p.strip() for p in text.split('\n\n') if len(p.strip()) > 50]
+    paragraphs = [p.strip() for p in re.split(r'\n{2,}|\n(?=[A-Z])', text) if len(p.strip()) > 50]
     short_paras = [p[:60] for p in paragraphs if len(p.split('.')) < 3]
     if len(short_paras) > 5:
         issues.append({

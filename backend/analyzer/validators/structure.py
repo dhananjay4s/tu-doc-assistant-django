@@ -1,5 +1,6 @@
 # TU FOHSS BCA — Official Section Templates
 # Sources: TUCDC official PDFs + United College Guidelines 2024
+import re
 
 TEMPLATES = {
     "project_1": {
@@ -213,6 +214,7 @@ TEMPLATES = {
             "chapter 4",
             "roles and responsibilities",
             "weekly log",
+            "description of project",
             "tasks",
             "chapter 5",
             "conclusion",
@@ -391,33 +393,8 @@ def check_structure(text, doc_type="project_2"):
     # Specific normalize — sabai hyphen hoina, chapter matra
     text_lower = text.lower()
     text_lower = text_lower.replace('chapter-', 'chapter ')
-    text_lower = text_lower.replace('chapter –', 'chapter ')
-    text_lower = text_lower.replace('chapter —', 'chapter ')
-    
-    found = []
-    missing = []
-
-    for section in template["required_sections"]:
-        # Flexible matching — exact + partial
-        section_lower = section.lower()
-
-        # Direct match
-        if section_lower in text_lower:
-            found.append(section)
-            continue
-
-        # Flexible match — split keywords
-        words = section_lower.split()
-        if len(words) >= 2:
-            # Check if main keywords exist nearby
-            first_word_idx = text_lower.find(words[0])
-            if first_word_idx != -1:
-                nearby = text_lower[first_word_idx:first_word_idx + 60]
-                if all(w in nearby for w in words[1:]):
-                    found.append(section)
-                    continue
-        # Doc type anusar section number mapping farak
-        if doc_type == "internship":
+    # Doc type anusar section number mapping farak
+    if doc_type == "internship":
             section_num_map = {
                 "background study": "3.1",
                 "literature review": "3.2",
@@ -430,18 +407,17 @@ def check_structure(text, doc_type="project_2"):
                 "conclusion": "5.1",
                 "learning outcome": "5.2",
             }
-        else:
-            section_num_map = {
-                "background study": "2.1",
-                "literature review": "2.2",
-                "system analysis": "3.1",
-                "tools used": "4.1.1",
-                "unit testing": "4.2.1",
-                "system testing": "4.2.2",
-                "future recommendations": "5.3",
+    else:
+        section_num_map = {
+            "background study": "2.1",
+            "literature review": "2.2",
+            "system analysis": "3.1",
+            "tools used": "4.1.1",
+            "unit testing": "4.2.1",
+            "system testing": "4.2.2",
+            "future recommendations": "5.3",
         }
-        # Abbreviation / alternate forms
-        alternates = {
+    alternates = {
             "cover page": [
                 "cover page", "title page", "tribhuvan university",
                 "a project report", "project report", "department of computer application",
@@ -579,6 +555,12 @@ def check_structure(text, doc_type="project_2"):
                 "organizational hierarchy", "organisational hierarchy",
                 "org hierarchy", section_num_map.get("organizational hierarchy", "2.2"),
             ],
+            "description of project": [
+                "description of project",
+                "description of the project",
+                "projects involved",
+                "4.3",
+            ],
             "working domains": [
                 "working domains", "domain of organization", section_num_map.get("working domains", "2.3")
             ],
@@ -603,9 +585,7 @@ def check_structure(text, doc_type="project_2"):
                 "scope and limitation",
                 "scope and limitations", 
                 "scope of the system",
-                "1.4",                 # ← section number
-                "scope",                  # ← single word
-                "limitation",             # ← single word   
+                "1.4",                # ← section number  
             ],
             "report organization": [
                 "report organization",
@@ -614,6 +594,28 @@ def check_structure(text, doc_type="project_2"):
                 "1.5", "1.6",            # ← project_1 ma 1.5, project_2 ma 1.6
             ],
         }
+    found = []
+    missing = []
+
+    for section in template["required_sections"]:
+        # Flexible matching — exact + partial
+        section_lower = section.lower()
+
+        # Direct match
+        if section_lower in text_lower:
+            found.append(section)
+            continue
+
+        # Flexible match — split keywords
+        words = section_lower.split()
+        if len(words) >= 2:
+            # Check if main keywords exist nearby
+            first_word_idx = text_lower.find(words[0])
+            if first_word_idx != -1:
+                nearby = text_lower[first_word_idx:first_word_idx + 60]
+                if all(w in nearby for w in words[1:]):
+                    found.append(section)
+                    continue
 
         alt_list = alternates.get(section_lower, [])
         matched = any(alt in text_lower for alt in alt_list)
@@ -668,7 +670,6 @@ def check_structure(text, doc_type="project_2"):
         "chapters_found": chapters_found,
         "subsection_issues": subsection_issues[:8],
     }
-import re
 
 def detect_group_members(text):
     text_lower = text.lower()
@@ -755,7 +756,7 @@ def validate_group(text, doc_type="project_2"):
     issues = []
 
     # TU rule: max 2 members for Project I & II
-    if doc_type in ("project_1", "project_2", "internship"):
+    if doc_type in ("project_1", "project_2"):
         if count and count > 2:
             issues.append({
                 "type": "error",
@@ -845,12 +846,19 @@ def check_numbering_consistency(text, doc_type="project_2"):
     
     # Internship proposal keywords
     internship_proposal_keywords = [
-        'expected outcome of internship',
+        'description of internship work',           # Ch 4 proposal
+        'internship plan',                           # Ch 5 proposal
+        'expected outcome of internship activities', # Ch 6 — very specific
         'internship proposal defense',
-        'description of internship work',
-        'expected outcome',
-        'internship plan',
-        'proposal defense',
+        'expected outcome of internship',
+    ]
+    internship_final_keywords = [
+        'roles and responsibilities',    # Ch 4.1 — final only
+        'weekly log',                    # Ch 4.2 — final only
+        'learning outcome',              # Ch 5.2 — final only
+        'organization details',          # Ch 2.1 — final only
+        'organizational hierarchy',      # Ch 2.2 — final only
+        'description of the project',    # Ch 4.3 — final only
     ]
 
     # Project proposal keywords
@@ -874,18 +882,28 @@ def check_numbering_consistency(text, doc_type="project_2"):
 
     if doc_type == "internship":
         found_proposal = [kw for kw in internship_proposal_keywords if kw in text_lower]
-        if found_proposal:
+        has_final = any(kw in text_lower for kw in internship_final_keywords)
+
+        if found_proposal and not has_final:
             issues.append({
                 "type": "error",
                 "message": (
                     "🚨 This appears to be an INTERNSHIP PROPOSAL, not a Final Report. "
                     f"Proposal content detected: '{found_proposal[0]}'. "
-                    "Final internship report must have: "
-                    "Ch2=Organization Intro, Ch3=Background Study & Lit Review, "
-                    "Ch4=Internship Activities, Ch5=Conclusion & Learning Outcome."
+                    "Final report must have: Ch2=Organization Intro, "
+                    "Ch3=Background Study & Lit Review, "
+                    "Ch4=Internship Activities (Roles, Weekly Log, Project Description, Tasks), "
+                    "Ch5=Conclusion & Learning Outcome."
                 )
             })
-    else:
+        elif found_proposal and has_final:
+            issues.append({
+                "type": "warning",
+                "message": (
+                    f"⚠️ Proposal content '{found_proposal[0]}' detected in final report. "
+                    "Remove proposal-specific sections before submission."
+                )
+            })
         found_proposal = [kw for kw in project_proposal_keywords if kw in text_lower]
         must_have = final_report_keywords.get(doc_type, [])
         has_final_content = any(kw in text_lower for kw in must_have)
